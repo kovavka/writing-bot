@@ -1,0 +1,8 @@
+node_modules
+
+# IDEs
+.idea/
+.vscode/
+
+data-base/word-count.db
+.env
