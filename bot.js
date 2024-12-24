@@ -13,34 +13,37 @@ const {
     close
 } = require('./data-base')
 
-const { TELEGRAM_BOT_TOKEN, ADMIN_ID } = process.env
+const { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } = process.env
 
 // Create a bot instance
 // const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
-const bot = new Telegraf(TELEGRAM_BOT_TOKEN);
+const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
 
 // todo add try catch everywhere
 
-const marathon = {
-    status: 'off',
-    participants: {
-        0: 'Лев Толстой', 1: 'Антон Чехов',
+const errors = {
+    unknown: `Перо знает много, но не понимает, что ведьмочка от него хочет. Используй заклинание /help`,
+    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше назвать гримуар иначе.`,
+    numberInvalid: `Ой, мне нужно было число, а не заклинание.`,
+    sqlError: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
+}
 
-    },
-    words: {
-        0: 5000,
-        1: 2000,
-    },
-    progress: [
-        1000,
-        1200,
-        2000,
-        2000,
-        3500,
-        6000,
-        60001
-    ]
+const texts = {
+    welcome: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
+    setName: `Как будет называться твоя волшебная книга?`,
+    setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0.`,
+    setGoal: `Сколько слов ты хочешь написать за январь?`,
+    projectCreated: (words)=> `WriteUp! Время писать! До конца марафона осталось X дней. Твоя цель на каждый день: ${words}`,
+    setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько слов тебе удалось написать сегодня?`,
+    todaySaved: `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты создала _ слов. Заклинание все крепче, у нас все получается!`,
+    statistics: `Впереди еще X дней и не хватает X слов. Я верю в тебя, моя ведьмочка!`,
+}
+
+const buttons = {
+    newProject: { text: 'Новый гримуар 📜', callback_data: `new_project` },
+    setToday: (projectId) => ({ text: 'Записать заклинание 🖋️', callback_data: `update_project_${projectId}` }),
+    statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
 }
 
 function isAdmin(ctx) {
@@ -48,10 +51,15 @@ function isAdmin(ctx) {
     const ifAdmin = userId.toString() === ADMIN_ID
 
     if (!ifAdmin) {
-        ctx.reply(`Неизвестная команда`);
+        ctx.reply(errors.unknown);
     }
 
     return ifAdmin
+}
+
+function sendErrorToAdmin(err) {
+    bot.telegram.sendMessage(ADMIN_ID, `Something went wrong with DB. ${err}`)
+        .catch(() => {});
 }
 
 function initSession(ctx) {
@@ -72,15 +80,16 @@ function getRemainingDaysInMonth() {
     return Math.ceil((lastDayOfMonth - today) / (1000 * 60 * 60 * 24)) + 1;
 }
 
+
 bot.start((ctx) => {
     const {id: userId, first_name, last_name} = ctx.from
 
     addUser(userId, `${first_name} ${last_name}`)
-    ctx.reply(`Добро пожаловать!`, {
+    ctx.reply(texts.welcome, {
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: 'Создать новый проект', callback_data: `new_project` },
+                    buttons.newProject
                 ],
             ],
         },
@@ -102,7 +111,7 @@ bot.on('callback_query', (ctx) => {
     if (callbackData.startsWith('new_project')) {
         ctx.session[userId] = { waitingForProjectName: true };
 
-        ctx.reply('Введите имя проекта');
+        ctx.reply(texts.setName);
         ctx.answerCbQuery();
     } else if (callbackData.startsWith('update_project_')) {
         const [,,projectId] = callbackData.split('_');
@@ -112,7 +121,7 @@ bot.on('callback_query', (ctx) => {
             projectId,
         };
 
-        ctx.reply('Введите текущий объём в словах');
+        ctx.reply(texts.setToday);
         ctx.answerCbQuery();
     } else if (callbackData.startsWith('stat_project_')) {
         const [,,projectId] = callbackData.split('_');
@@ -142,11 +151,11 @@ bot.on('callback_query', (ctx) => {
             ctx.answerCbQuery();
 
             // getChart().then((value) => {
-            //     ctx.replyWithPhoto({ source: value }, { caption: 'Ваша статистика',
+            //     ctx.replyWithPhoto({ source: value }, { caption: texts.statistics,
             //         reply_markup: {
             //             inline_keyboard: [
             //                 [
-            //                     { text: 'Ввести результат', callback_data: `update_project_${projectId}` },
+            //                     buttons.setToday(projectId),
             //                 ],
             //             ],
             //         }, });
@@ -157,13 +166,14 @@ bot.on('callback_query', (ctx) => {
             //
             //     ctx.answerCbQuery();
             // })
-        }).catch(() => {
-            ctx.reply('Ошибка при создании статистики');
+        }).catch((err) => {
+            ctx.reply(errors.sqlError);
+            sendErrorToAdmin(err)
 
             ctx.answerCbQuery();
         })
     } else {
-        ctx.reply('Неизвестная команда!');
+        ctx.reply(errors.unknown);
         ctx.answerCbQuery();
     }
 });
@@ -177,31 +187,31 @@ bot.on('text', (ctx) => {
     const sessionData = ctx.session[userId]
 
     if (sessionData == null) {
-        ctx.reply('Текст не распознан. Используйте команду \\help, чтобы узнать о доступных командах');
+        ctx.reply(errors.unknown);
         return
     }
 
     if (sessionData.waitingForProjectName) {
         // check for invalid inputs and sql injections
         if (userInput != null) {
-            ctx.reply(`Введите количество слов, с котором вы начинаете. Если вы начинаете с чистого листа, введите 0`);
+            ctx.reply(texts.setStart);
 
             sessionData.waitingForProjectName = false;
             sessionData.projectName = userInput
             sessionData.waitingForWordsStart = true;
         } else {
-            ctx.reply('That is not a valid name. Please send a valid name.');
+            ctx.reply(errors.nameInvalid);
         }
     } else if (sessionData.waitingForWordsStart) {
         const start = parseInt(userInput);
         if (!isNaN(start)) {
-            ctx.reply(`Введите количество слов, которое вы хотите написать в этом месяце`);
+            ctx.reply(texts.setGoal);
 
             sessionData.waitingForWordsStart = false;
             sessionData.wordsStart = start
             sessionData.waitingForWordsGoal = true;
         } else {
-            ctx.reply('That is not a valid number. Please send a valid number.');
+            ctx.reply(errors.numberInvalid);
         }
     } else if (sessionData.waitingForWordsGoal) {
         // проверить что цель больше начала
@@ -211,25 +221,28 @@ bot.on('text', (ctx) => {
 
             const {projectName, wordsStart} = sessionData
             createProject(userId, projectName, wordsStart, goal).then(id => {
-                ctx.reply(`Проект ${projectName} создан! Ваша цель на каждый день – ${Math.ceil((goal - wordsStart) / remainingDays)} слов`,
+                const dailyGoal = Math.ceil((goal - wordsStart) / remainingDays)
+                // ctx.reply(`Проект ${projectName} создан! Ваша цель на каждый день – ${Math.ceil((goal - wordsStart) / remainingDays)} слов`,
+                ctx.reply(texts.projectCreated(dailyGoal),
                     {
                         parse_mode: 'Markdown',
                         reply_markup: {
                             inline_keyboard: [
                                 [
-                                    { text: 'Ввести результат', callback_data: `update_project_${id}` },
-                                    { text: 'Статистика', callback_data: `stat_project_${id}` },
+                                    buttons.setToday(id),
+                                    buttons.statistics(id),
                                 ],
                             ],
                         },
                     });
             }).catch(err => {
-                ctx.reply(err);
+                sendErrorToAdmin(err)
+                ctx.reply(errors.sqlError);
             })
 
             sessionData.waitingForWordsGoal = false;
         } else {
-            ctx.reply('That is not a valid number. Please send a valid number.');
+            ctx.reply(errors.numberInvalid);
         }
     } else if (sessionData.waitingForCurrentWords && sessionData.projectId != null) {
         const {projectId} = sessionData
@@ -237,12 +250,12 @@ bot.on('text', (ctx) => {
         if (!isNaN(currentWords)) {
             setResult(projectId, currentWords)
 
-            ctx.reply(`Результат сохранён. +244 слова. Сегодняшняя цель выполнена на N%`, {
+            ctx.reply(texts.todaySaved, {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            { text: 'Ввести результат', callback_data: `update_project_${projectId}` },
-                            { text: 'Статистика', callback_data: `stat_project_${projectId}` },
+                            buttons.setToday(projectId),
+                            buttons.statistics(projectId),
                         ],
                     ],
                 },
@@ -250,10 +263,10 @@ bot.on('text', (ctx) => {
 
             sessionData.waitingForCurrentWords = false;
         } else {
-            ctx.reply('That is not a valid number. Please send a valid number.');
+            ctx.reply(errors.numberInvalid);
         }
     } else {
-        ctx.reply('Текст не распознан. Используте команду \\help, чтобы узнать о доступных командах');
+        ctx.reply(errors.unknown);
 
     }
 
