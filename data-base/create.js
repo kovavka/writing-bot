@@ -1,14 +1,31 @@
 const sqlite3 = require('sqlite3').verbose();
-const fs = require('fs');
 const path = require('path');
 
-const migrationsFolderPath = path.join(__dirname, './migrations');
+const commands = [
+    `CREATE TABLE IF NOT EXISTS User (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+    )`,
 
-const migrations = fs.readdirSync(migrationsFolderPath).map(file => {
-    const filePath = path.join(migrationsFolderPath, file);
-    return {name: file, command: fs.readFileSync(filePath).toString()}
-})
+    `CREATE TABLE IF NOT EXISTS Project (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    start INTEGER NOT NULL,
+    goal INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES User (id)
+    )`,
 
+    `CREATE TABLE IF NOT EXISTS DayResult (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    projectId INTEGER NOT NULL,
+    day INTEGER NOT NULL,
+    month INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    result INTEGER NOT NULL,
+    FOREIGN KEY (projectId) REFERENCES Project (id)
+    )`
+]
 const db = new sqlite3.Database(path.join(__dirname, './word-count.db'), (err) => {
     if (err) {
         console.error('Error opening database:', err.message);
@@ -17,13 +34,13 @@ const db = new sqlite3.Database(path.join(__dirname, './word-count.db'), (err) =
     }
 });
 
-migrations.forEach(({name, command}) => {
+commands.forEach((command) => {
     db.serialize(() => {
         db.run(command, (err) => {
             if (err) {
                 console.error('Error while running migration:', err.message);
             } else {
-                console.log(`Migration ${name} done`);
+                console.log(`Table created`);
             }
         });
     });
@@ -36,4 +53,5 @@ db.close((err) => {
         console.log('Database connection closed.');
     }
 });
+
 

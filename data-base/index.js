@@ -30,9 +30,9 @@ function addUser(id, name) {
     });
 }
 
-function createEvent(length, sprintDuration) {
+function createProject(userId, name, start, goal) {
     return new Promise((resolve, reject) => {
-        db.run(`INSERT INTO Event (length, sprintDuration) VALUES (?, ?)`, [length, sprintDuration], function(err) {
+        db.run(`INSERT INTO Project (userId, name, start, goal) VALUES (?, ?, ?, ?)`, [userId, name, start, goal], function(err) {
             if (err) {
                 reject(err);
             } else {
@@ -42,27 +42,51 @@ function createEvent(length, sprintDuration) {
     });
 }
 
-function createSprint(eventId) {
+function getDateObj() {
+    const today = new Date();
+    const day = today.getDate()
+    const month = today.getMonth()
+    const year = today.getFullYear()
+
+    return {day, month, year}
+}
+
+function getStatistics(projectId) {
+    const {month, year} = getDateObj()
+
     return new Promise((resolve, reject) => {
-        db.run(`INSERT INTO Sprint (eventId) VALUES (?)`, [eventId], function(err) {
+        db.all(`SELECT * FROM DayResult WHERE projectId = ? AND year = ? AND month = ?`, [projectId, year, month], (err, rows) => {
             if (err) {
+                console.error('Error querying database:', err.message);
                 reject(err);
+            } else if (rows) {
+                resolve(rows)
             } else {
-                resolve(this.lastID);
+                resolve([])
             }
         });
     });
 }
 
-function joinSprint(userId, sprintId, wordsStart) {
-    db.run(`INSERT INTO UserSprint (userId, sprintId, wordsStart) VALUES (?, ?)`, [userId, sprintId, wordsStart]);
+function setResult(projectId, result) {
+    const {day, month, year} = getDateObj()
+
+    db.get(`SELECT id FROM DayResult WHERE projectId = ? AND year = ? AND month = ? AND day = ?`, [projectId, year, month, day], (err, row) => {
+        if (err) {
+            console.error('Error querying database:', err.message);
+        } else if (row) {
+            db.run(`UPDATE DayResult SET result = ? WHERE id = ?`, [result, row.id]);
+        } else {
+            db.run(`INSERT INTO DayResult (projectId, year, month, day, result) VALUES (?, ?, ?, ?, ?)`, [projectId, year, month, day, result]);
+        }
+    });
 }
 
 module.exports = {
     addUser,
-    createEvent,
-    createSprint,
-    joinSprint,
+    createProject,
+    getStatistics,
+    setResult,
     close,
 }
 

@@ -1,7 +1,8 @@
 const QuickChart = require('quickchart-js');
 
-// Create a new QuickChart instance
-const chart = new QuickChart();
+function getChart() {
+ const chart = new QuickChart();
+
 chart
     .setConfig({
         "type": "line",
@@ -317,7 +318,9 @@ chart
     .setHeight(400)
     .setBackgroundColor('#2a394d');
 
-// Save the chart as an image
-chart.toFile('./word-count-chart.png').then(() => {
-    console.log('Chart saved as word-count-chart.png');
-});
+    return chart.toBinary()
+}
+
+module.exports = {
+    getChart
+}
