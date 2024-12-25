@@ -8,7 +8,9 @@ const commands = require('./commands')
 const {
     addUser,
     createProject,
-    getStatistics,
+    getDayResults,
+    getProjects,
+    getProject,
     setResult,
     close
 } = require('./data-base')
@@ -24,17 +26,20 @@ bot.use(session());
 
 const errors = {
     unknown: `Перо знает много, но не понимает, что ведьмочка от него хочет. Используй заклинание /help`,
-    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше назвать гримуар иначе.`,
-    numberInvalid: `Ой, мне нужно было число, а не заклинание.`,
-    sqlError: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
+    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше назвать гримуар иначе`,
+    numberInvalid: `Ой, мне нужно было число, а не заклинание`,
+    generic: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
 }
 
 const texts = {
     welcome: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
     setName: `Как будет называться твоя волшебная книга?`,
-    setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0.`,
+    setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
     setGoal: `Сколько слов ты хочешь написать за январь?`,
     projectCreated: (words)=> `WriteUp! Время писать! До конца марафона осталось X дней. Твоя цель на каждый день: ${words}`,
+    allProjects: `Ууху, вот все ваши гримуары`,
+    zeroProjects: `Кажется, у тебя ещё нет гримуаров, но ты можешь создать новый`,
+    selectProject: `Ууху, открываю гримуар`,
     setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько слов тебе удалось написать сегодня?`,
     todaySaved: `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты создала _ слов. Заклинание все крепче, у нас все получается!`,
     statistics: `Впереди еще X дней и не хватает X слов. Я верю в тебя, моя ведьмочка!`,
@@ -42,6 +47,7 @@ const texts = {
 
 const buttons = {
     newProject: { text: 'Новый гримуар 📜', callback_data: `new_project` },
+    allProjects: { text: 'Гримуары 📚', callback_data: `all_projects` },
     setToday: (projectId) => ({ text: 'Записать заклинание 🖋️', callback_data: `update_project_${projectId}` }),
     statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
 }
@@ -58,7 +64,7 @@ function isAdmin(ctx) {
 }
 
 function sendErrorToAdmin(err) {
-    bot.telegram.sendMessage(ADMIN_ID, `Something went wrong with DB. ${err}`)
+    bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
         .catch(() => {});
 }
 
@@ -96,19 +102,107 @@ bot.start((ctx) => {
     });
 });
 
-bot.command('words', (ctx) => {
-    const messageText = ctx.message.text;
-    const [, wordCount = 0] = messageText.split(' ');
-    ctx.reply(`Результат записан. Добавлено слов: ${wordCount - 2000}`)
-    // add to db
-});
+function sendStatistics(ctx, projectId) {
+
+
+    Promise.all([getDayResults(projectId), getProject(projectId)]).then(([rows, project]) => {
+        const data = []
+        const {start, goal} = project
+
+        const days = 31
+        // const rowsObj = rows.map(x=>x.day)
+
+        rows.forEach(({day, result}) => {
+            data[day - 1] = result
+        })
+
+        // можем учитывать до текущего дня
+
+        const today = new Date().getDate()
+
+        // todo start with actual words start
+        let prevRes = 0
+        for(let i = 0; i < today; i++) {
+            if (data[i] !== undefined) {
+                prevRes = data[i]
+            } else {
+                data[i] = prevRes
+            }
+        }
+
+        // todo fix goal
+        getChart(days, data, start, goal + start).then((value) => {
+            ctx.replyWithPhoto({ source: value }, { caption: texts.statistics,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            buttons.setToday(projectId),
+                        ],
+                    ],
+                }, });
+
+            ctx.answerCbQuery();
+        }).catch((err) => {
+            ctx.reply(errors.generic);
+            sendErrorToAdmin(err)
+
+            ctx.answerCbQuery();
+        })
+    }).catch((err) => {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    })
+}
+
+bot.command('all', (ctx) => {
+    const {id: userId} = ctx.from
+
+    getProjects(userId).then((rows) => {
+        if (rows.length === 0)  {
+            ctx.reply(texts.zeroProjects, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            buttons.newProject
+                        ]
+                    ]
+                },
+            });
+        } else {
+            ctx.reply(texts.allProjects, {
+                reply_markup: {
+                    inline_keyboard:
+                        rows.map(row => ([{ text: row.name, callback_data: `project_${row.id}` }]))
+
+                },
+            });
+        }
+    }).catch((err) => {
+        sendErrorToAdmin(err)
+        ctx.reply(errors.generic);
+    })
+})
+
+bot.command('help', (ctx) => {
+    ctx.reply(texts.welcome, {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    buttons.newProject,
+                    buttons.allProjects,
+                ],
+            ],
+        },
+    });
+
+})
 
 bot.on('callback_query', (ctx) => {
     const callbackData = ctx.callbackQuery.data;
     const {id: userId} = ctx.from
 
     initSession(ctx)
-    if (callbackData.startsWith('new_project')) {
+    if (callbackData === 'new_project') {
         ctx.session[userId] = { waitingForProjectName: true };
 
         ctx.reply(texts.setName);
@@ -126,52 +220,25 @@ bot.on('callback_query', (ctx) => {
     } else if (callbackData.startsWith('stat_project_')) {
         const [,,projectId] = callbackData.split('_');
 
-        // const today = new Date();
-        const lastDay = 31
+        sendStatistics(ctx, projectId)
 
+        ctx.answerCbQuery();
+    } else if (callbackData.startsWith('project_')) {
+        const [,projectId] = callbackData.split('_');
 
-        getStatistics(projectId).then(rows => {
-            const result = []
-            console.log(rows)
+        ctx.reply(texts.selectProject,
+            {
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            buttons.setToday(projectId),
+                            buttons.statistics(projectId),
+                        ],
+                    ],
+                },
+            });
 
-            // const rowsObj = rows.map(x=>x.day)
-
-            // todo start with actual words start
-            let prevRes = 0
-            for(let i = 0; i < lastDay; i++) {
-                if (rows.day === i + 1) {
-                    result[i] = rows.result
-                    prevRes = rows.result
-                } else {
-                    result[i] = prevRes
-                }
-            }
-
-            console.log(result)
-            ctx.answerCbQuery();
-
-            // getChart().then((value) => {
-            //     ctx.replyWithPhoto({ source: value }, { caption: texts.statistics,
-            //         reply_markup: {
-            //             inline_keyboard: [
-            //                 [
-            //                     buttons.setToday(projectId),
-            //                 ],
-            //             ],
-            //         }, });
-            //
-            //     ctx.answerCbQuery();
-            // }).catch(() => {
-            //     ctx.reply('Ошибка при создании статистики');
-            //
-            //     ctx.answerCbQuery();
-            // })
-        }).catch((err) => {
-            ctx.reply(errors.sqlError);
-            sendErrorToAdmin(err)
-
-            ctx.answerCbQuery();
-        })
+        ctx.answerCbQuery();
     } else {
         ctx.reply(errors.unknown);
         ctx.answerCbQuery();
@@ -237,7 +304,7 @@ bot.on('text', (ctx) => {
                     });
             }).catch(err => {
                 sendErrorToAdmin(err)
-                ctx.reply(errors.sqlError);
+                ctx.reply(errors.generic);
             })
 
             sessionData.waitingForWordsGoal = false;

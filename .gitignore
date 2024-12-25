@@ -4,5 +4,5 @@ node_modules
 .idea/
 .vscode/
 
-data-base/word-count.db
+data-base/*.db
 .env

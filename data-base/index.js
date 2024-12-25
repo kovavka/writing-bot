@@ -51,7 +51,7 @@ function getDateObj() {
     return {day, month, year}
 }
 
-function getStatistics(projectId) {
+function getDayResults(projectId) {
     const {month, year} = getDateObj()
 
     return new Promise((resolve, reject) => {
@@ -63,6 +63,36 @@ function getStatistics(projectId) {
                 resolve(rows)
             } else {
                 resolve([])
+            }
+        });
+    });
+}
+
+function getProjects(userId) {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM Project WHERE userId = ?`, [userId], (err, rows) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (rows) {
+                resolve(rows)
+            } else {
+                resolve([])
+            }
+        });
+    });
+}
+
+function getProject(projectId) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM Project WHERE id = ?`, [projectId], (err, row) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve(row)
+            } else {
+                resolve(undefined)
             }
         });
     });
@@ -85,7 +115,9 @@ function setResult(projectId, result) {
 module.exports = {
     addUser,
     createProject,
-    getStatistics,
+    getDayResults,
+    getProjects,
+    getProject,
     setResult,
     close,
 }
