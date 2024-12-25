@@ -31,18 +31,34 @@ const errors = {
     generic: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
 }
 
+const wordForms = {
+    words: ['слово', 'слова', 'слов'],
+    days: ['день', 'дня', 'дней'],
+}
+
+function getWordForm(number, forms) {
+   if (number % 10 === 1 && number % 100 !== 11) {
+       return forms[0]
+   }
+   if (number % 10 > 1 && number % 10 < 5 && (number % 100 < 10 || number % 100 > 20)) {
+        return forms[1]
+   }
+
+   return forms[2]
+}
+
 const texts = {
     welcome: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
     setName: `Как будет называться твоя волшебная книга?`,
     setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
     setGoal: `Сколько слов ты хочешь написать за январь?`,
-    projectCreated: (words)=> `WriteUp! Время писать! До конца марафона осталось X дней. Твоя цель на каждый день: ${words}`,
+    projectCreated: (days, words)=> `WriteUp! Время писать! До конца марафона осталось ${days} ${getWordForm(days, wordForms.days)}. Твоя цель на каждый день: ${words} ${getWordForm(words, wordForms.words)}`,
     allProjects: `Ууху, вот все ваши гримуары`,
     zeroProjects: `Кажется, у тебя ещё нет гримуаров, но ты можешь создать новый`,
     selectProject: `Ууху, открываю гримуар`,
     setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько слов тебе удалось написать сегодня?`,
-    todaySaved: `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты создала _ слов. Заклинание все крепче, у нас все получается!`,
-    statistics: `Впереди еще X дней и не хватает X слов. Я верю в тебя, моя ведьмочка!`,
+    todaySaved: (words) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты создала ${words} ${getWordForm(words, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
+    statistics: (days, words) => `Впереди еще ${days} ${getWordForm(days, wordForms.days)} и не хватает ${words} ${getWordForm(words, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
 }
 
 const buttons = {
@@ -110,7 +126,6 @@ function sendStatistics(ctx, projectId) {
         const {start, goal} = project
 
         const days = 31
-        // const rowsObj = rows.map(x=>x.day)
 
         rows.forEach(({day, result}) => {
             data[day - 1] = result
@@ -130,9 +145,13 @@ function sendStatistics(ctx, projectId) {
             }
         }
 
+        // todo check if goal is achieved
+        const daysLeft = days - today + 1
+        const wordsLeft = goal + start - prevRes
+        console.log(goal, prevRes)
         // todo fix goal
         getChart(days, data, start, goal + start).then((value) => {
-            ctx.replyWithPhoto({ source: value }, { caption: texts.statistics,
+            ctx.replyWithPhoto({ source: value }, { caption: texts.statistics(daysLeft, wordsLeft),
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -289,8 +308,7 @@ bot.on('text', (ctx) => {
             const {projectName, wordsStart} = sessionData
             createProject(userId, projectName, wordsStart, goal).then(id => {
                 const dailyGoal = Math.ceil((goal - wordsStart) / remainingDays)
-                // ctx.reply(`Проект ${projectName} создан! Ваша цель на каждый день – ${Math.ceil((goal - wordsStart) / remainingDays)} слов`,
-                ctx.reply(texts.projectCreated(dailyGoal),
+                ctx.reply(texts.projectCreated(remainingDays, dailyGoal),
                     {
                         parse_mode: 'Markdown',
                         reply_markup: {
@@ -317,7 +335,10 @@ bot.on('text', (ctx) => {
         if (!isNaN(currentWords)) {
             setResult(projectId, currentWords)
 
-            ctx.reply(texts.todaySaved, {
+            // todo
+            const wordsLeft = 50000 - currentWords
+
+            ctx.reply(texts.todaySaved(wordsLeft), {
                 reply_markup: {
                     inline_keyboard: [
                         [
