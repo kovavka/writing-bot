@@ -11,18 +11,18 @@ const commands = [
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER NOT NULL,
     name TEXT NOT NULL,
-    start INTEGER NOT NULL,
-    goal INTEGER NOT NULL,
+    dateStart TEXT NOT NULL,
+    dateEnd TEXT NOT NULL,
+    wordsStart INTEGER NOT NULL,
+    wordsGoal INTEGER NOT NULL,
     FOREIGN KEY (userId) REFERENCES User (id)
     )`,
 
     `CREATE TABLE IF NOT EXISTS DayResult (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     projectId INTEGER NOT NULL,
-    day INTEGER NOT NULL,
-    month INTEGER NOT NULL,
-    year INTEGER NOT NULL,
-    result INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    words INTEGER NOT NULL,
     FOREIGN KEY (projectId) REFERENCES Project (id)
     )`
 ]

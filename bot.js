@@ -5,24 +5,25 @@ require('dotenv').config();
 const {getChart} = require('./chart')
 const commands = require('./commands')
 
-const {
-    addUser,
-    createProject,
-    getDayResults,
-    getProjects,
-    getProject,
-    setResult,
-    close
-} = require('./data-base')
+const db  = require('./data-base')
 
 const { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } = process.env
 
-// Create a bot instance
-// const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
 
 // todo add try catch everywhere
+
+function getWordForm(number, forms) {
+   if (number % 10 === 1 && number % 100 !== 11) {
+       return forms[0]
+   }
+   if (number % 10 > 1 && number % 10 < 5 && (number % 100 < 10 || number % 100 > 20)) {
+        return forms[1]
+   }
+
+   return forms[2]
+}
 
 const errors = {
     unknown: `Перо знает много, но не понимает, что ведьмочка от него хочет. Используй заклинание /help`,
@@ -36,29 +37,21 @@ const wordForms = {
     days: ['день', 'дня', 'дней'],
 }
 
-function getWordForm(number, forms) {
-   if (number % 10 === 1 && number % 100 !== 11) {
-       return forms[0]
-   }
-   if (number % 10 > 1 && number % 10 < 5 && (number % 100 < 10 || number % 100 > 20)) {
-        return forms[1]
-   }
-
-   return forms[2]
-}
-
 const texts = {
     welcome: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
     setName: `Как будет называться твоя волшебная книга?`,
     setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
-    setGoal: `Сколько слов ты хочешь написать за январь?`,
-    projectCreated: (days, words)=> `WriteUp! Время писать! До конца марафона осталось ${days} ${getWordForm(days, wordForms.days)}. Твоя цель на каждый день: ${words} ${getWordForm(words, wordForms.words)}`,
+    setGoal: `Сколько слов ты хочешь написать за это время?`,
+    projectCreated: (finalWords, daysLeft, dayGoal)=> `WriteUp! Время писать! Через ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} В твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, wordForms.words)}.
+Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, wordForms.words)}`,
     allProjects: `Ууху, вот все ваши гримуары`,
     zeroProjects: `Кажется, у тебя ещё нет гримуаров, но ты можешь создать новый`,
     selectProject: `Ууху, открываю гримуар`,
-    setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько слов тебе удалось написать сегодня?`,
-    todaySaved: (words) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты создала ${words} ${getWordForm(words, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
-    statistics: (days, words) => `Впереди еще ${days} ${getWordForm(days, wordForms.days)} и не хватает ${words} ${getWordForm(words, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
+    setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько теперь слов в твоём гримуаре?`,
+    todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты ${wordsDiff >0 ? 'написала' : 'вычеркнула'} ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
+    todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
+    statistics: (daysLeft, wordsLeft) => `Впереди еще ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
+    statisticsAchieved: `Молодец, ведьмочка, ты дописала манускрипт!`,
 }
 
 const buttons = {
@@ -90,23 +83,15 @@ function initSession(ctx) {
     }
 }
 
-function getRemainingDaysInMonth() {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth(); // Month is 0-indexed (0 = January, 11 = December)
-
-    // Get the last day of the current month
-    const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0); // Day 0 gives the last day of the previous month
-
-    // Calculate the difference in days
-    return Math.ceil((lastDayOfMonth - today) / (1000 * 60 * 60 * 24)) + 1;
+function getRemainingDays(from, to) {
+    return Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
 }
 
 
 bot.start((ctx) => {
     const {id: userId, first_name, last_name} = ctx.from
 
-    addUser(userId, `${first_name} ${last_name}`)
+    db.addUser(userId, `${first_name} ${last_name}`)
     ctx.reply(texts.welcome, {
         reply_markup: {
             inline_keyboard: [
@@ -119,25 +104,25 @@ bot.start((ctx) => {
 });
 
 function sendStatistics(ctx, projectId) {
-
-
-    Promise.all([getDayResults(projectId), getProject(projectId)]).then(([rows, project]) => {
+    Promise.all([db.getDayResults(projectId), db.getProject(projectId)]).then(([rows, project]) => {
         const data = []
-        const {start, goal} = project
+        const today = new Date()
+        const {dateStart: dateStartStr, dateEnd: dateEndStr, wordsStart, wordsGoal} = project
 
-        const days = 31
+        const dateStart = new Date(dateStartStr)
+        const dateEnd = new Date(dateEndStr)
+        const projectLength = getRemainingDays(dateStart, dateEnd)
+        const remainingDays = getRemainingDays(today, dateEnd)
+        const daysPassed = getRemainingDays(dateStart, today) - 1
 
-        rows.forEach(({day, result}) => {
-            data[day - 1] = result
+        rows.forEach(({date, words}) => {
+            const index = getRemainingDays(dateStart, new Date(date)) - 1
+            data[index] = words
         })
 
-        // можем учитывать до текущего дня
-
-        const today = new Date().getDate()
-
-        // todo start with actual words start
         let prevRes = 0
-        for(let i = 0; i < today; i++) {
+        // we use daysPassed to render bars until current date
+        for(let i = 0; i < daysPassed; i++) {
             if (data[i] !== undefined) {
                 prevRes = data[i]
             } else {
@@ -145,13 +130,9 @@ function sendStatistics(ctx, projectId) {
             }
         }
 
-        // todo check if goal is achieved
-        const daysLeft = days - today + 1
-        const wordsLeft = goal + start - prevRes
-        console.log(goal, prevRes)
-        // todo fix goal
-        getChart(days, data, start, goal + start).then((value) => {
-            ctx.replyWithPhoto({ source: value }, { caption: texts.statistics(daysLeft, wordsLeft),
+        getChart(projectLength, data, wordsStart, wordsGoal + wordsStart).then((value) => {
+            const wordsLeft = wordsGoal + wordsStart - prevRes
+            ctx.replyWithPhoto({ source: value }, { caption: wordsLeft <= 0 ? texts.statisticsAchieved : texts.statistics(remainingDays, wordsLeft),
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -176,7 +157,7 @@ function sendStatistics(ctx, projectId) {
 bot.command('all', (ctx) => {
     const {id: userId} = ctx.from
 
-    getProjects(userId).then((rows) => {
+    db.getProjects(userId).then((rows) => {
         if (rows.length === 0)  {
             ctx.reply(texts.zeroProjects, {
                 reply_markup: {
@@ -264,6 +245,37 @@ bot.on('callback_query', (ctx) => {
     }
 });
 
+function getDateStr(date) {
+    return (date ?? new Date()).toISOString().split('T')[0];
+}
+
+function createProjectCommand(ctx, userId, projectName, wordsStart, goal) {
+    const today = new Date()
+    const dateEnd = new Date(2025, 0, 31)
+
+    const remainingDays = getRemainingDays(today, dateEnd)
+
+    db.createProject(userId, projectName, getDateStr(today), getDateStr(dateEnd), wordsStart, goal).then(id => {
+        const dailyGoal = Math.ceil(goal / remainingDays)
+        ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),
+            {
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            buttons.setToday(id),
+                            buttons.statistics(id),
+                        ],
+                    ],
+                },
+            });
+    }).catch(err => {
+        sendErrorToAdmin(err)
+        ctx.reply(errors.generic);
+    })
+}
+
+
 bot.on('text', (ctx) => {
     const {id: userId} = ctx.from
     const userInput = ctx.message.text;
@@ -278,8 +290,7 @@ bot.on('text', (ctx) => {
     }
 
     if (sessionData.waitingForProjectName) {
-        // check for invalid inputs and sql injections
-        if (userInput != null) {
+        if (userInput != null && !(/('|--|;)/.test(userInput))) {
             ctx.reply(texts.setStart);
 
             sessionData.waitingForProjectName = false;
@@ -291,63 +302,56 @@ bot.on('text', (ctx) => {
     } else if (sessionData.waitingForWordsStart) {
         const start = parseInt(userInput);
         if (!isNaN(start)) {
-            ctx.reply(texts.setGoal);
+            const {projectName} = sessionData
+            //todo remove after enabling custom goal
+            createProjectCommand(ctx, userId, projectName, start, 50000)
 
             sessionData.waitingForWordsStart = false;
-            sessionData.wordsStart = start
-            sessionData.waitingForWordsGoal = true;
+
+            // ctx.reply(texts.setGoal);
+            // sessionData.wordsStart = start
+            // sessionData.waitingForWordsGoal = true;
         } else {
             ctx.reply(errors.numberInvalid);
         }
-    } else if (sessionData.waitingForWordsGoal) {
-        // проверить что цель больше начала
-        const goal = parseInt(userInput);
-        if (!isNaN(goal)) {
-            const remainingDays = getRemainingDaysInMonth()
-
-            const {projectName, wordsStart} = sessionData
-            createProject(userId, projectName, wordsStart, goal).then(id => {
-                const dailyGoal = Math.ceil((goal - wordsStart) / remainingDays)
-                ctx.reply(texts.projectCreated(remainingDays, dailyGoal),
-                    {
-                        parse_mode: 'Markdown',
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    buttons.setToday(id),
-                                    buttons.statistics(id),
-                                ],
-                            ],
-                        },
-                    });
-            }).catch(err => {
-                sendErrorToAdmin(err)
-                ctx.reply(errors.generic);
-            })
-
-            sessionData.waitingForWordsGoal = false;
-        } else {
-            ctx.reply(errors.numberInvalid);
-        }
+    // } else if (sessionData.waitingForWordsGoal) {
+    //     const goal = parseInt(userInput);
+    //     if (!isNaN(goal) && goal > 0) {
+    //
+    //         const {projectName, wordsStart} = sessionData
+    //
+    //         createProjectCommand(ctx, userId, projectName, wordsStart, goal)
+    //
+    //         sessionData.waitingForWordsGoal = false;
+    //     } else {
+    //         ctx.reply(errors.numberInvalid);
+    //     }
     } else if (sessionData.waitingForCurrentWords && sessionData.projectId != null) {
         const {projectId} = sessionData
         const currentWords = parseInt(userInput);
         if (!isNaN(currentWords)) {
-            setResult(projectId, currentWords)
+            Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId)]).then(([project, result]) => {
+                const prevWords = result != null ? result.words : project.wordsStart
+                const wordsDiff = currentWords - prevWords
 
-            // todo
-            const wordsLeft = 50000 - currentWords
+                db.setResult(projectId, currentWords)
 
-            ctx.reply(texts.todaySaved(wordsLeft), {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            buttons.setToday(projectId),
-                            buttons.statistics(projectId),
+                const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
+                ctx.reply(goalAchieved ? texts.todayAchieved : texts.todaySaved(wordsDiff), {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.setToday(projectId),
+                                buttons.statistics(projectId),
+                            ],
                         ],
-                    ],
-                },
-            });
+                    },
+                });
+            }).catch((err) => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+             })
+
 
             sessionData.waitingForCurrentWords = false;
         } else {
@@ -366,6 +370,6 @@ bot.launch();
 console.log('Bot is running...');
 
 process.on('SIGINT', () => {
-    close()
+    db.close()
     process.exit(); // Ensure the process exits
 });

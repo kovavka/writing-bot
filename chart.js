@@ -1,19 +1,18 @@
 const QuickChart = require('quickchart-js');
 
-function getChart(numberOfDays, data,  start, goal) {
+function getChart(numberOfDays, data,  start, finish) {
     const chart = new QuickChart();
 
     const expectedData = []
     const labels = []
 
-    const dayStep = Math.ceil((goal - start) / numberOfDays)
-
-    const chartStep = Math.ceil((goal + start) / 2)
+    const dayStep = Math.ceil((finish - start) / numberOfDays)
+    const chartStep = Math.ceil((finish - start) / 2)
 
 
     for (let i = 0; i < numberOfDays; i++) {
         const value = start + dayStep * (i + 1)
-        expectedData[i] = value > goal ? goal : value
+        expectedData[i] = value > finish ? finish : value
         labels[i] = i + 1
     }
 
@@ -252,7 +251,7 @@ function getChart(numberOfDays, data,  start, goal) {
                                     "fontStyle": "normal",
                                     "padding": 0,
                                     "min": start,
-                                    "max": goal,
+                                    "max": finish,
                                     "stepSize": chartStep,
                                     "minRotation": 0,
                                     "maxRotation": 50,

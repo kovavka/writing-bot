@@ -30,9 +30,13 @@ function addUser(id, name) {
     });
 }
 
-function createProject(userId, name, start, goal) {
+function getDateStr(date) {
+    return (date ?? new Date()).toISOString().split('T')[0];
+}
+
+function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) {
     return new Promise((resolve, reject) => {
-        db.run(`INSERT INTO Project (userId, name, start, goal) VALUES (?, ?, ?, ?)`, [userId, name, start, goal], function(err) {
+        db.run(`INSERT INTO Project (userId, name, dateStart, dateEnd, wordsStart, wordsGoal) VALUES (?, ?, ?, ?, ?, ?)`, [userId, name, dateStart, dateEnd, wordsStart, wordsGoal], function(err) {
             if (err) {
                 reject(err);
             } else {
@@ -42,20 +46,10 @@ function createProject(userId, name, start, goal) {
     });
 }
 
-function getDateObj() {
-    const today = new Date();
-    const day = today.getDate()
-    const month = today.getMonth()
-    const year = today.getFullYear()
-
-    return {day, month, year}
-}
 
 function getDayResults(projectId) {
-    const {month, year} = getDateObj()
-
     return new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM DayResult WHERE projectId = ? AND year = ? AND month = ?`, [projectId, year, month], (err, rows) => {
+        db.all(`SELECT * FROM DayResult WHERE projectId = ?`, [projectId], (err, rows) => {
             if (err) {
                 console.error('Error querying database:', err.message);
                 reject(err);
@@ -98,16 +92,33 @@ function getProject(projectId) {
     });
 }
 
-function setResult(projectId, result) {
-    const {day, month, year} = getDateObj()
+function getPrevDayResult(projectId) {
+    const today = getDateStr()
 
-    db.get(`SELECT id FROM DayResult WHERE projectId = ? AND year = ? AND month = ? AND day = ?`, [projectId, year, month, day], (err, row) => {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM DayResult WHERE projectId = ? AND date < ? ORDER BY id DESC LIMIT 1`, [projectId, today], (err, row) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve(row)
+            } else {
+                resolve(undefined)
+            }
+        });
+    });
+}
+
+function setResult(projectId, words) {
+    const today = getDateStr()
+
+    db.get(`SELECT id FROM DayResult WHERE projectId = ? AND date = ?`, [projectId, today], (err, row) => {
         if (err) {
             console.error('Error querying database:', err.message);
         } else if (row) {
-            db.run(`UPDATE DayResult SET result = ? WHERE id = ?`, [result, row.id]);
+            db.run(`UPDATE DayResult SET words = ? WHERE id = ?`, [words, row.id]);
         } else {
-            db.run(`INSERT INTO DayResult (projectId, year, month, day, result) VALUES (?, ?, ?, ?, ?)`, [projectId, year, month, day, result]);
+            db.run(`INSERT INTO DayResult (projectId, date, words) VALUES (?, ?, ?)`, [projectId, today, words]);
         }
     });
 }
@@ -119,6 +130,7 @@ module.exports = {
     getProjects,
     getProject,
     setResult,
+    getPrevDayResult,
     close,
 }
 
