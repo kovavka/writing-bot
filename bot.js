@@ -1,9 +1,9 @@
 // const TelegramBot = require('node-telegram-bot-api');
 const { Telegraf, session } = require('telegraf');
+const moment = require('moment-timezone');
 require('dotenv').config();
 
 const {getChart} = require('./chart')
-const commands = require('./commands')
 
 const db  = require('./data-base')
 
@@ -12,7 +12,11 @@ const { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } = process.env
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
 
-// todo add try catch everywhere
+const TIME_ZONE = 'Europe/Moscow'
+const DATE_FORMAT = 'YYYY-MM-DD'
+
+const MARATHON_END_STR = '2025-01-31'
+const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
 
 function getWordForm(number, forms) {
    if (number % 10 === 1 && number % 100 !== 11) {
@@ -27,7 +31,7 @@ function getWordForm(number, forms) {
 
 const errors = {
     unknown: `Перо знает много, но не понимает, что ведьмочка от него хочет. Используй заклинание /help`,
-    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше назвать гримуар иначе`,
+    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше выбрать другое имя`,
     numberInvalid: `Ой, мне нужно было число, а не заклинание`,
     generic: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
 }
@@ -38,20 +42,25 @@ const wordForms = {
 }
 
 const texts = {
-    welcome: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
+    help: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
+    welcome: `Ух, новая ведьмочка! Меня зовут Перо, я самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!\n\nА как мне называть тебя?`,
+    userNameSet: `Приятно познакомиться! Теперь я могу помочь тебе создать твой первый гримуар`,
+    welcomeBack: (name) => `С возвращением, ${name}!`,
     setName: `Как будет называться твоя волшебная книга?`,
     setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
     setGoal: `Сколько слов ты хочешь написать за это время?`,
     projectCreated: (finalWords, daysLeft, dayGoal)=> `WriteUp! Время писать! Через ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} В твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, wordForms.words)}.
 Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, wordForms.words)}`,
     allProjects: `Ууху, вот все ваши гримуары`,
-    zeroProjects: `Кажется, у тебя ещё нет гримуаров, но ты можешь создать новый`,
+    zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
     selectProject: `Ууху, открываю гримуар`,
     setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько теперь слов в твоём гримуаре?`,
-    todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты ${wordsDiff >0 ? 'написала' : 'вычеркнула'} ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
+    todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
+    todaySavedNegative: (wordsDiff) => `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}.`,
     todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
     statistics: (daysLeft, wordsLeft) => `Впереди еще ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
     statisticsAchieved: `Молодец, ведьмочка, ты дописала манускрипт!`,
+    status: `Я здесь, ведьмочка. Ухуу!`,
 }
 
 const buttons = {
@@ -83,40 +92,77 @@ function initSession(ctx) {
     }
 }
 
-function getRemainingDays(from, to) {
-    return Math.ceil((to - from) / (1000 * 60 * 60 * 24)) + 1;
+function clearSession(ctx) {
+    const {id: userId} = ctx.from
+
+    if (ctx.session != null) {
+        ctx.session[userId] = {}
+    }
 }
 
+function getRemainingDays(dateFrom, dateTo) {
+    // including both
+    return dateTo.startOf('day').diff(dateFrom.startOf('day'), 'days') + 1
+}
+
+function getToday() {
+    const date = moment();
+    return date.tz(TIME_ZONE);
+}
+
+function getDateStr(date = getToday()) {
+    return date.tz(TIME_ZONE).format('YYYY-MM-DD');
+}
 
 bot.start((ctx) => {
-    const {id: userId, first_name, last_name} = ctx.from
+    try {
+        // init and clear
+        ctx.session = {};
 
-    db.addUser(userId, `${first_name} ${last_name}`)
-    ctx.reply(texts.welcome, {
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    buttons.newProject
-                ],
-            ],
-        },
-    });
+        const {id: userId, first_name, last_name} = ctx.from
+
+        // just in case create user right away
+        db.getUser(userId).then(user => {
+            if (user == null) {
+                db.addUser(userId, `${first_name} ${last_name}`)
+                ctx.session[userId] = { waitingForUserName: true };
+                ctx.reply(texts.welcome)
+            } else {
+                ctx.reply(texts.welcomeBack(user.name), {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.allProjects
+                            ]
+                        ]
+                    },
+                });
+            }
+        }).catch((err) => {
+            ctx.reply(errors.generic);
+            sendErrorToAdmin(err)
+        })
+    } catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
 });
 
 function sendStatistics(ctx, projectId) {
     Promise.all([db.getDayResults(projectId), db.getProject(projectId)]).then(([rows, project]) => {
         const data = []
-        const today = new Date()
+        const today = getToday()
         const {dateStart: dateStartStr, dateEnd: dateEndStr, wordsStart, wordsGoal} = project
 
-        const dateStart = new Date(dateStartStr)
-        const dateEnd = new Date(dateEndStr)
+        const dateStart = moment(dateStartStr, DATE_FORMAT)
+        const dateEnd = moment(dateEndStr, DATE_FORMAT)
         const projectLength = getRemainingDays(dateStart, dateEnd)
         const remainingDays = getRemainingDays(today, dateEnd)
         const daysPassed = getRemainingDays(dateStart, today) - 1
 
         rows.forEach(({date, words}) => {
-            const index = getRemainingDays(dateStart, new Date(date)) - 1
+            const rowDate = moment(date, DATE_FORMAT)
+            const index = getRemainingDays(dateStart, rowDate) - 1
             data[index] = words
         })
 
@@ -154,7 +200,9 @@ function sendStatistics(ctx, projectId) {
     })
 }
 
-bot.command('all', (ctx) => {
+function allProjectsCommand(ctx) {
+    clearSession(ctx)
+
     const {id: userId} = ctx.from
 
     db.getProjects(userId).then((rows) => {
@@ -181,77 +229,158 @@ bot.command('all', (ctx) => {
         sendErrorToAdmin(err)
         ctx.reply(errors.generic);
     })
+}
+
+bot.command('all', (ctx) => {
+    try {
+        allProjectsCommand(ctx)
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
 })
 
 bot.command('help', (ctx) => {
-    ctx.reply(texts.welcome, {
-        reply_markup: {
-            inline_keyboard: [
-                [
-                    buttons.newProject,
-                    buttons.allProjects,
+    try {
+        clearSession(ctx)
+        ctx.reply(texts.help, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        buttons.newProject,
+                        buttons.allProjects,
+                    ],
                 ],
-            ],
-        },
-    });
+            },
+        });
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
+})
 
+bot.command('status', (ctx) => {
+    const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
+
+    ctx.reply(`${texts.status}\nВремя: ${time}`)
+})
+
+bot.command('stat', (ctx) => {
+    try {
+        clearSession(ctx)
+
+        if (isAdmin(ctx)) {
+            const dateFrom = '2024-12-20'
+            db.getStatistics(dateFrom, MARATHON_END_STR)
+                .then(rows => {
+                    const resultByUser = {}
+                    rows.forEach(row => {
+                        const {userId, userName, projectName, wordsStart, latestWords} = row
+                        if (resultByUser[userId] === undefined) {
+                            resultByUser[userId] = []
+                        }
+
+                        const userResult = resultByUser[userId]
+                        userResult.push({
+                            userName,
+                            projectName,
+                            wordsWritten: (latestWords != null && latestWords > wordsStart) ? latestWords - wordsStart : 0,
+                        })
+                    })
+
+
+                    const data = Object.entries(resultByUser).map(([userId, result]) => {
+                        if (result.length === 0) {
+                            return ''
+                        }
+
+                        const {userName} = result[0]
+                        const wordsSum = result.reduce((partialSum, a) => partialSum + a.wordsWritten, 0);
+                        let details = ''
+
+                        if (result.length > 1) {
+                            details = result.map(x => `${x.projectName} - ${x.wordsWritten}`).join(', ')
+                        } else {
+                            details = result[0].projectName
+                        }
+
+                        return `${userName}: ${wordsSum} (${details})`
+                    })
+
+
+                    ctx.reply(`Статистика марафона:\n\n${data}`);
+                }).catch((err) => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+            })
+        } else {
+            ctx.reply(errors.unknown)
+        }
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
 })
 
 bot.on('callback_query', (ctx) => {
-    const callbackData = ctx.callbackQuery.data;
-    const {id: userId} = ctx.from
+    try {
+        const callbackData = ctx.callbackQuery.data;
+        const {id: userId} = ctx.from
 
-    initSession(ctx)
-    if (callbackData === 'new_project') {
-        ctx.session[userId] = { waitingForProjectName: true };
+        initSession(ctx)
+        if (callbackData === 'new_project') {
+            ctx.session[userId] = { waitingForProjectName: true };
 
-        ctx.reply(texts.setName);
-        ctx.answerCbQuery();
-    } else if (callbackData.startsWith('update_project_')) {
-        const [,,projectId] = callbackData.split('_');
+            ctx.reply(texts.setName);
+            ctx.answerCbQuery();
+        } else if (callbackData.startsWith('update_project_')) {
+            const [,,projectId] = callbackData.split('_');
 
-        ctx.session[userId] = {
-            waitingForCurrentWords: true,
-            projectId,
-        };
+            ctx.session[userId] = {
+                waitingForCurrentWords: true,
+                projectId,
+            };
 
-        ctx.reply(texts.setToday);
-        ctx.answerCbQuery();
-    } else if (callbackData.startsWith('stat_project_')) {
-        const [,,projectId] = callbackData.split('_');
+            ctx.reply(texts.setToday);
+            ctx.answerCbQuery();
+        } else if (callbackData.startsWith('stat_project_')) {
+            const [,,projectId] = callbackData.split('_');
 
-        sendStatistics(ctx, projectId)
+            sendStatistics(ctx, projectId)
 
-        ctx.answerCbQuery();
-    } else if (callbackData.startsWith('project_')) {
-        const [,projectId] = callbackData.split('_');
+            ctx.answerCbQuery();
+        } else if (callbackData === 'all_projects') {
+            allProjectsCommand(ctx)
+            ctx.answerCbQuery();
+        } else if (callbackData.startsWith('project_')) {
+            const [,projectId] = callbackData.split('_');
 
-        ctx.reply(texts.selectProject,
-            {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            buttons.setToday(projectId),
-                            buttons.statistics(projectId),
+            ctx.reply(texts.selectProject,
+                {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.setToday(projectId),
+                                buttons.statistics(projectId),
+                            ],
                         ],
-                    ],
-                },
-            });
+                    },
+                });
 
-        ctx.answerCbQuery();
-    } else {
-        ctx.reply(errors.unknown);
-        ctx.answerCbQuery();
+            ctx.answerCbQuery();
+        } else {
+            ctx.reply(errors.unknown);
+            ctx.answerCbQuery();
+        }
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
     }
 });
 
-function getDateStr(date) {
-    return (date ?? new Date()).toISOString().split('T')[0];
-}
-
 function createProjectCommand(ctx, userId, projectName, wordsStart, goal) {
-    const today = new Date()
-    const dateEnd = new Date(2025, 0, 31)
+    const today = getToday()
+    const dateEnd = MARATHON_END_DATE
 
     const remainingDays = getRemainingDays(today, dateEnd)
 
@@ -275,95 +404,113 @@ function createProjectCommand(ctx, userId, projectName, wordsStart, goal) {
     })
 }
 
-
 bot.on('text', (ctx) => {
-    const {id: userId} = ctx.from
-    const userInput = ctx.message.text;
+    try {
+        const {id: userId} = ctx.from
+        const userInput = ctx.message.text;
 
-    initSession(ctx)
+        initSession(ctx)
 
-    const sessionData = ctx.session[userId]
+        const sessionData = ctx.session[userId]
 
-    if (sessionData == null) {
-        ctx.reply(errors.unknown);
-        return
-    }
-
-    if (sessionData.waitingForProjectName) {
-        if (userInput != null && !(/('|--|;)/.test(userInput))) {
-            ctx.reply(texts.setStart);
-
-            sessionData.waitingForProjectName = false;
-            sessionData.projectName = userInput
-            sessionData.waitingForWordsStart = true;
-        } else {
-            ctx.reply(errors.nameInvalid);
+        if (sessionData == null) {
+            ctx.reply(errors.unknown);
+            return
         }
-    } else if (sessionData.waitingForWordsStart) {
-        const start = parseInt(userInput);
-        if (!isNaN(start)) {
-            const {projectName} = sessionData
-            //todo remove after enabling custom goal
-            createProjectCommand(ctx, userId, projectName, start, 50000)
 
-            sessionData.waitingForWordsStart = false;
+        if (sessionData.waitingForProjectName) {
+            if (userInput != null && !(/('|--|;)/.test(userInput))) {
+                ctx.reply(texts.setStart);
 
-            // ctx.reply(texts.setGoal);
-            // sessionData.wordsStart = start
-            // sessionData.waitingForWordsGoal = true;
-        } else {
-            ctx.reply(errors.numberInvalid);
-        }
-    // } else if (sessionData.waitingForWordsGoal) {
-    //     const goal = parseInt(userInput);
-    //     if (!isNaN(goal) && goal > 0) {
-    //
-    //         const {projectName, wordsStart} = sessionData
-    //
-    //         createProjectCommand(ctx, userId, projectName, wordsStart, goal)
-    //
-    //         sessionData.waitingForWordsGoal = false;
-    //     } else {
-    //         ctx.reply(errors.numberInvalid);
-    //     }
-    } else if (sessionData.waitingForCurrentWords && sessionData.projectId != null) {
-        const {projectId} = sessionData
-        const currentWords = parseInt(userInput);
-        if (!isNaN(currentWords)) {
-            Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId)]).then(([project, result]) => {
-                const prevWords = result != null ? result.words : project.wordsStart
-                const wordsDiff = currentWords - prevWords
+                sessionData.waitingForProjectName = false;
+                sessionData.projectName = userInput
+                sessionData.waitingForWordsStart = true;
+            } else {
+                ctx.reply(errors.nameInvalid);
+            }
+        } else if (sessionData.waitingForWordsStart) {
+            const start = parseInt(userInput);
+            if (!isNaN(start)) {
+                const {projectName} = sessionData
+                //todo remove after enabling custom goal
+                createProjectCommand(ctx, userId, projectName, start, 50000)
 
-                db.setResult(projectId, currentWords)
+                sessionData.waitingForWordsStart = false;
 
-                const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
-                ctx.reply(goalAchieved ? texts.todayAchieved : texts.todaySaved(wordsDiff), {
+                // ctx.reply(texts.setGoal);
+                // sessionData.wordsStart = start
+                // sessionData.waitingForWordsGoal = true;
+            } else {
+                ctx.reply(errors.numberInvalid);
+            }
+        // } else if (sessionData.waitingForWordsGoal) {
+        //     const goal = parseInt(userInput);
+        //     if (!isNaN(goal) && goal > 0) {
+        //
+        //         const {projectName, wordsStart} = sessionData
+        //
+        //         createProjectCommand(ctx, userId, projectName, wordsStart, goal)
+        //
+        //         sessionData.waitingForWordsGoal = false;
+        //     } else {
+        //         ctx.reply(errors.numberInvalid);
+        //     }
+        } else if (sessionData.waitingForCurrentWords && sessionData.projectId != null) {
+            const {projectId} = sessionData
+            const currentWords = parseInt(userInput);
+            if (!isNaN(currentWords)) {
+                const today = getToday()
+                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, today)]).then(([project, result]) => {
+                    const prevWords = result != null ? result.words : project.wordsStart
+                    const wordsDiff = currentWords - prevWords
+
+                    db.setResult(projectId, currentWords, today)
+
+                    const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
+                    ctx.reply(goalAchieved ? texts.todayAchieved : wordsDiff >= 0 ? texts.todaySaved(wordsDiff) : texts.todaySavedNegative(wordsDiff), {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    buttons.setToday(projectId),
+                                    buttons.statistics(projectId),
+                                ],
+                            ],
+                        },
+                    });
+                }).catch((err) => {
+                    ctx.reply(errors.generic);
+                    sendErrorToAdmin(err)
+                 })
+
+
+                sessionData.waitingForCurrentWords = false;
+            } else {
+                ctx.reply(errors.numberInvalid);
+            }
+        } else if (sessionData.waitingForUserName) {
+            if (userInput != null && !(/('|--|;)/.test(userInput))) {
+                db.updateUser(userId, userInput)
+                ctx.reply(texts.userNameSet, {
                     reply_markup: {
                         inline_keyboard: [
                             [
-                                buttons.setToday(projectId),
-                                buttons.statistics(projectId),
-                            ],
-                        ],
+                                buttons.newProject
+                            ]
+                        ]
                     },
                 });
-            }).catch((err) => {
-                ctx.reply(errors.generic);
-                sendErrorToAdmin(err)
-             })
-
-
-            sessionData.waitingForCurrentWords = false;
+                sessionData.waitingForUserName = false;
+            } else {
+                ctx.reply(errors.nameInvalid);
+            }
         } else {
-            ctx.reply(errors.numberInvalid);
+            ctx.reply(errors.unknown);
         }
-    } else {
-        ctx.reply(errors.unknown);
-
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
     }
-
 });
-
 
 bot.launch();
 

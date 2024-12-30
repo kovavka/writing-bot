@@ -19,6 +19,21 @@ function close() {
     });
 }
 
+function getUser(id) {
+    return new Promise((resolve, reject) => {
+        db.get(`SELECT * FROM User WHERE id = ?`, [id], (err, row) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve(row)
+            } else {
+                resolve(undefined)
+            }
+        });
+    });
+}
+
 function addUser(id, name) {
     db.get(`SELECT id FROM User WHERE id = ?`, [id], (err, row) => {
         if (err) {
@@ -30,8 +45,12 @@ function addUser(id, name) {
     });
 }
 
-function getDateStr(date) {
-    return (date ?? new Date()).toISOString().split('T')[0];
+function updateUser(id, name) {
+    db.run(`UPDATE User SET name = ? WHERE id = ?`, [name, id], (err) => {
+        if (err) {
+            console.error('Error querying database:', err.message);
+        }
+    });
 }
 
 function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) {
@@ -92,9 +111,7 @@ function getProject(projectId) {
     });
 }
 
-function getPrevDayResult(projectId) {
-    const today = getDateStr()
-
+function getPrevDayResult(projectId, today) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT * FROM DayResult WHERE projectId = ? AND date < ? ORDER BY id DESC LIMIT 1`, [projectId, today], (err, row) => {
             if (err) {
@@ -109,9 +126,7 @@ function getPrevDayResult(projectId) {
     });
 }
 
-function setResult(projectId, words) {
-    const today = getDateStr()
-
+function setResult(projectId, words, today) {
     db.get(`SELECT id FROM DayResult WHERE projectId = ? AND date = ?`, [projectId, today], (err, row) => {
         if (err) {
             console.error('Error querying database:', err.message);
@@ -123,14 +138,60 @@ function setResult(projectId, words) {
     });
 }
 
+function getStatistics(dateStart, dateEnd) {
+    return new Promise((resolve, reject) => {
+        db.all(`
+SELECT 
+    u.id AS userId,
+    u.name AS userName,
+    p.id AS projectId,
+    p.name AS projectName,
+    p.dateStart,
+    p.dateEnd,
+    p.wordsStart,
+    p.wordsGoal,
+    dr.date AS latestDate,
+    dr.words AS latestWords
+FROM User u
+JOIN Project p ON u.id = p.userId
+LEFT JOIN (
+    SELECT 
+        projectId, 
+        date, 
+        words 
+    FROM DayResult dr1
+    WHERE dr1.date = (
+        SELECT MAX(dr2.date)
+        FROM DayResult dr2
+        WHERE dr1.projectId = dr2.projectId
+    )
+) dr ON p.id = dr.projectId
+WHERE p.dateStart >= ? AND p.dateEnd <= ?;
+`, [dateStart, dateEnd], (err, rows) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (rows) {
+                resolve(rows)
+            } else {
+                resolve([])
+            }
+        });
+    });
+}
+
+
 module.exports = {
+    getUser,
     addUser,
+    updateUser,
     createProject,
     getDayResults,
     getProjects,
     getProject,
     setResult,
     getPrevDayResult,
+    getStatistics,
     close,
 }
 
