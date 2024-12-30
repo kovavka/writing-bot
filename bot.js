@@ -158,7 +158,7 @@ function sendStatistics(ctx, projectId) {
         const dateEnd = moment(dateEndStr, DATE_FORMAT)
         const projectLength = getRemainingDays(dateStart, dateEnd)
         const remainingDays = getRemainingDays(today, dateEnd)
-        const daysPassed = getRemainingDays(dateStart, today) - 1
+        const daysPassed = getRemainingDays(dateStart, today)
 
         rows.forEach(({date, words}) => {
             const rowDate = moment(date, DATE_FORMAT)
@@ -262,8 +262,6 @@ bot.command('help', (ctx) => {
 bot.command('status', (ctx) => {
     const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
 
-    throw new Error('dfkjdfkj')
-
     ctx.reply(`${texts.status}\nВремя: ${time}`)
 })
 
@@ -290,7 +288,6 @@ bot.command('stat', (ctx) => {
                         })
                     })
 
-
                     const data = Object.entries(resultByUser).map(([userId, result]) => {
                         if (result.length === 0) {
                             return ''
@@ -306,11 +303,13 @@ bot.command('stat', (ctx) => {
                             details = result[0].projectName
                         }
 
-                        return `${userName}: ${wordsSum} (${details})`
+                        return {userName, wordsSum, details}
                     })
 
+                    const dataSorted = data.sort((a,b) => b.wordsSum - a.wordsSum)
+                        .map(x =>  `${x.userName}: ${x.wordsSum} (${x.details})`)
 
-                    ctx.reply(`Статистика марафона:\n\n${data}`);
+                    ctx.reply(`Статистика марафона:\n\n${dataSorted.join('\n')}`);
                 }).catch((err) => {
                 ctx.reply(errors.generic);
                 sendErrorToAdmin(err)
@@ -461,12 +460,12 @@ bot.on('text', (ctx) => {
             const {projectId} = sessionData
             const currentWords = parseInt(userInput);
             if (!isNaN(currentWords)) {
-                const today = getToday()
-                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, today)]).then(([project, result]) => {
+                const todaySrt = getDateStr(getToday())
+                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todaySrt)]).then(([project, result]) => {
                     const prevWords = result != null ? result.words : project.wordsStart
                     const wordsDiff = currentWords - prevWords
 
-                    db.setResult(projectId, currentWords, today)
+                    db.setResult(projectId, currentWords, todaySrt)
 
                     const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
                     ctx.reply(goalAchieved ? texts.todayAchieved : wordsDiff >= 0 ? texts.todaySaved(wordsDiff) : texts.todaySavedNegative(wordsDiff), {
