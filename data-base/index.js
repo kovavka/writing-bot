@@ -65,6 +65,18 @@ function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) 
     });
 }
 
+function updateProject(projectId, name) {
+    return new Promise((resolve, reject) => {
+        db.run(`UPDATE Project SET name = ? WHERE id = ?`, [name, projectId], function(err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
 
 function getDayResults(projectId) {
     return new Promise((resolve, reject) => {
@@ -186,6 +198,7 @@ module.exports = {
     addUser,
     updateUser,
     createProject,
+    updateProject,
     getDayResults,
     getProjects,
     getProject,
