@@ -262,6 +262,8 @@ bot.command('help', (ctx) => {
 bot.command('status', (ctx) => {
     const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
 
+    throw new Error('dfkjdfkj')
+
     ctx.reply(`${texts.status}\nВремя: ${time}`)
 })
 
