@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set variables
-DB_FILE="word-count.db"
+DB_FILE="./data-base/word-count.db"
 BACKUP_DIR="./backups"
 DATE=$(date +"%Y-%m-%d")
 
