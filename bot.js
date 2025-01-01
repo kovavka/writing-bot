@@ -54,7 +54,7 @@ const texts = {
 Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, wordForms.words)}`,
     allProjects: `Ууху, вот все ваши гримуары`,
     zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
-    selectProject: `Ууху, открываю гримуар`,
+    selectProject: (name) => `Ууху, открываю гримуар _${name}_`,
     editProject: `Конечно, что ты хочешь поменять?`,
     projectRenamed: `Хорошее имя, ведьмочка!`,
     projectRemoved: `Гримуар удалён!`,
@@ -74,8 +74,8 @@ const buttons = {
     allProjects: { text: 'Гримуары 📚', callback_data: `all_projects` },
     changeName: { text: 'Изменить имя 🦄', callback_data: `change_name` },
     editProject: (projectId) => ({ text: 'Редактировать ✏️', callback_data: `edit_project_${projectId}` }),
-    renameProject: (projectId) => ({ text: 'Переименовать', callback_data: `rename_project_${projectId}` }),
-    removeProject: (projectId) => ({ text: 'Удалить', callback_data: `remove_project_${projectId}` }),
+    renameProject: (projectId) => ({ text: 'Переименовать 📝', callback_data: `rename_project_${projectId}` }),
+    removeProject: (projectId) => ({ text: 'Удалить ❌', callback_data: `remove_project_${projectId}` }),
     setToday: (projectId) => ({ text: 'Записать заклинание 🖋️', callback_data: `update_project_${projectId}` }),
     statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
 }
@@ -374,8 +374,7 @@ bot.on('callback_query', (ctx) => {
             ctx.answerCbQuery();
         } else if (callbackData.startsWith('change_name')) {
             ctx.session[userId] = {
-                waitingForUserName: true,
-                changingName: true,
+                waitingForNewUserName: true,
             };
 
             ctx.reply(texts.changeName);
@@ -393,8 +392,9 @@ bot.on('callback_query', (ctx) => {
             const [,projectId] = callbackData.split('_');
 
             db.getProject(projectId).then(row => {
-                ctx.reply(texts.selectProject,
+                ctx.reply(texts.selectProject(row.name),
                     {
+                        parse_mode: 'Markdown',
                         reply_markup: {
                             inline_keyboard: [
                                 [
@@ -434,17 +434,7 @@ bot.on('callback_query', (ctx) => {
             const [,,projectId] = callbackData.split('_');
 
             ctx.session[userId] = { waitingForProjectNewName: true, projectId };
-            ctx.reply(texts.setName,
-                {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                buttons.renameProject(projectId),
-                                buttons.removeProject(projectId),
-                            ],
-                        ],
-                    },
-                });
+            ctx.reply(texts.setName);
 
             ctx.answerCbQuery();
         } else if (callbackData.startsWith('remove_project_')) {
@@ -528,13 +518,25 @@ bot.on('text', (ctx) => {
             } else {
                 ctx.reply(errors.nameInvalid);
             }
-        } if (sessionData.waitingForProjectNewName) {
+        } else if (sessionData.waitingForProjectNewName) {
             if (userInput != null && !(/('|--|;)/.test(userInput))) {
                 const {projectId} = sessionData
 
                db.renameProject(projectId, userInput)
                    .then(() => {
-                       ctx.reply(texts.projectRenamed);
+                       ctx.reply(texts.projectRenamed, {
+                           reply_markup: {
+                               inline_keyboard: [
+                                   [
+                                       buttons.editProject(projectId)
+                                   ],
+                                   [
+                                       buttons.setToday(projectId),
+                                       buttons.statistics(projectId),
+                                   ],
+                               ],
+                           },
+                       });
                    }).catch((err) => {
                        ctx.reply(errors.generic);
                        sendErrorToAdmin(err)
@@ -606,29 +608,37 @@ bot.on('text', (ctx) => {
         } else if (sessionData.waitingForUserName) {
             if (userInput != null && !(/('|--|;)/.test(userInput))) {
                 db.updateUser(userId, userInput)
-                if (sessionData.changingName) {
-                    ctx.reply(texts.userNameUpdated , {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    buttons.allProjects
-                                ]
+
+                ctx.reply(texts.userNameSet, {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.newProject
                             ]
-                        },
-                    });
-                } else {
-                    ctx.reply(texts.userNameSet, {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    buttons.newProject
-                                ]
-                            ]
-                        },
-                    });
-                }
+                        ]
+                    },
+                });
+
                 sessionData.waitingForUserName = false;
-                sessionData.changingName = false;
+            } else {
+                ctx.reply(errors.nameInvalid);
+            }
+        } else if (sessionData.waitingForNewUserName) {
+            if (userInput != null && !(/('|--|;)/.test(userInput))) {
+                db.updateUser(userId, userInput)
+
+                ctx.reply(texts.userNameUpdated , {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.newProject,
+                                buttons.allProjects
+                            ]
+                        ]
+                    },
+                });
+
+                sessionData.waitingForNewUserName = false;
             } else {
                 ctx.reply(errors.nameInvalid);
             }
