@@ -58,7 +58,7 @@ const texts = {
     editProject: `Конечно, что ты хочешь поменять?`,
     projectRenamed: `Хорошее имя, ведьмочка!`,
     projectRemoved: `Гримуар удалён!`,
-    setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько теперь слов в твоём гримуаре?`,
+    setToday: (words) => `Надеюсь, твой день прошел хорошо. В прошлый раз гримуаре было ${words} ${getWordForm(words, wordForms.words)}. Расскажи Перо, сколько слов в нём сейчас?`,
     todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
     todaySavedNegative: (wordsDiff) => `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}.`,
     todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
@@ -328,8 +328,7 @@ function getAdminStat(ctx) {
                     return {userName, joinedName, wordsSum, startSum, diff}
                 }).map(x =>  `${x.userName} | ${x.joinedName} | ${x.startSum} | ${x.wordsSum} | ${x.diff}`)
 
-                ctx.reply(`Статистика марафона:\n\nИмя | Название | Старт | Всего | Разница\n\n${data.join('\n')}`,
-                    { parse_mode: 'Markdown' });
+                ctx.reply(`Имя | Название | Старт | Всего | Разница\n\n${data.join('\n')}`);
             }).catch((err) => {
             ctx.reply(errors.generic);
             sendErrorToAdmin(err)
@@ -388,8 +387,7 @@ bot.command('statToday', (ctx) => {
                     const dataSorted = data.sort((a,b) => b.wordsDiff - a.wordsDiff)
                         .map(x =>  `${x.userName}: ${x.wordsDiff}`)
 
-                    ctx.reply(`Статистика марафона:\n\n${dataSorted.join('\n')}`,
-                        { parse_mode: 'Markdown' });
+                    ctx.reply(dataSorted.join('\n'));
                 }).catch((err) => {
                 ctx.reply(errors.generic);
                 sendErrorToAdmin(err)
@@ -422,8 +420,18 @@ bot.on('callback_query', (ctx) => {
                 projectId,
             };
 
-            ctx.reply(texts.setToday);
-            ctx.answerCbQuery();
+            db.getCurrentWords(projectId).then((row) => {
+                const prevWords = row.latestWords ?? row.wordsStart
+
+                ctx.reply(texts.setToday(prevWords));
+                ctx.answerCbQuery();
+            }).catch((err) => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+                ctx.answerCbQuery();
+            })
+
+
         } else if (callbackData.startsWith('change_name')) {
             ctx.session[userId] = {
                 waitingForNewUserName: true,

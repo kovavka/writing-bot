@@ -135,6 +135,42 @@ function getProject(projectId) {
     });
 }
 
+function getCurrentWords(projectId) {
+    return new Promise((resolve, reject) => {
+        db.get(`
+SELECT 
+    p.id,
+    p.name,
+    p.wordsStart,
+    p.wordsGoal,
+    dr.date AS latestDate,
+    dr.words AS latestWords
+FROM Project p
+LEFT JOIN (
+    SELECT 
+        projectId, 
+        date, 
+        words 
+    FROM DayResult dr1
+    WHERE dr1.date = (
+        SELECT MAX(dr2.date)
+        FROM DayResult dr2
+        WHERE dr1.projectId = dr2.projectId
+    )
+) dr ON p.id = dr.projectId
+WHERE p.id = ?`, [projectId], (err, row) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (row) {
+                resolve(row)
+            } else {
+                resolve(undefined)
+            }
+        });
+    });
+}
+
 function getPrevDayResult(projectId, today) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT * FROM DayResult WHERE projectId = ? AND date < ? ORDER BY id DESC LIMIT 1`, [projectId, today], (err, row) => {
@@ -217,6 +253,7 @@ module.exports = {
     getProject,
     setResult,
     getPrevDayResult,
+    getCurrentWords,
     getStatistics,
     close,
 }
