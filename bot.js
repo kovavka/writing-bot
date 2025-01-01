@@ -293,51 +293,109 @@ bot.command('status', (ctx) => {
     ctx.reply(`${texts.status}\nВремя: ${time}`)
 })
 
+function getAdminStat(ctx) {
+    if (isAdmin(ctx)) {
+        const dateFrom = '2024-12-20'
+        db.getStatistics(dateFrom, MARATHON_END_STR)
+            .then(rows => {
+                const resultByUser = {}
+                rows.forEach(row => {
+                    const {userId, userName, projectName, wordsStart, latestWords} = row
+                    if (resultByUser[userId] === undefined) {
+                        resultByUser[userId] = []
+                    }
+
+                    const userResult = resultByUser[userId]
+                    userResult.push({
+                        userName,
+                        projectName,
+                        wordsStart,
+                        latestWords: latestWords != null ? latestWords : wordsStart,
+                    })
+                })
+
+                const data = Object.entries(resultByUser).map(([userId, result]) => {
+                    if (result.length === 0) {
+                        return ''
+                    }
+
+                    const {userName} = result[0]
+                    const startSum = result.reduce((partialSum, a) => partialSum + a.wordsStart, 0);
+                    const wordsSum = result.reduce((partialSum, a) => partialSum + a.latestWords, 0);
+                    let details = ''
+
+                    if (result.length > 1) {
+                        details = result.map(x => `${x.projectName}: (${x.wordsStart} -> ${x.latestWords})`).join('; ')
+                    } else {
+                        details = result[0].projectName
+                    }
+
+                    return {userName, wordsSum, startSum, details}
+                }).map(x =>  `${x.userName} | ${x.startSum} | ${x.wordsSum} | ${x.details}`)
+
+                ctx.reply(`Статистика марафона:\n\nИмя | Старт | Всего | Детали\n\n${data.join('\n')}`,
+                    { parse_mode: 'Markdown' });
+            }).catch((err) => {
+            ctx.reply(errors.generic);
+            sendErrorToAdmin(err)
+        })
+    } else {
+        ctx.reply(errors.unknown)
+    }
+}
+
 bot.command('stat', (ctx) => {
+    try {
+        clearSession(ctx)
+        getAdminStat(ctx)
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
+})
+
+bot.command('statToday', (ctx) => {
     try {
         clearSession(ctx)
 
         if (isAdmin(ctx)) {
+            // today by server time
+            const today = moment().format(DATE_FORMAT)
             const dateFrom = '2024-12-20'
-            db.getStatistics(dateFrom, MARATHON_END_STR)
+            console.log(today)
+            db.getStatistics(dateFrom, MARATHON_END_STR, today)
                 .then(rows => {
                     const resultByUser = {}
                     rows.forEach(row => {
-                        const {userId, userName, projectName, wordsStart, latestWords} = row
-                        if (resultByUser[userId] === undefined) {
-                            resultByUser[userId] = []
+                        const {userId, userName, wordsStart, latestWords} = row
+
+                        const projectResult = {
+                            userName,
+                            wordsDiff: (latestWords != null) ? latestWords - wordsStart : 0,
                         }
 
-                        const userResult = resultByUser[userId]
-                        userResult.push({
-                            userName,
-                            projectName,
-                            wordsWritten: (latestWords != null && latestWords > wordsStart) ? latestWords - wordsStart : 0,
-                        })
+                        if (resultByUser[userId] === undefined) {
+                            resultByUser[userId] = projectResult
+                        } else {
+                            const {wordsDiff} = resultByUser[userId]
+                            resultByUser[userId] = {
+                                userName: userName,
+                                wordsDiff: wordsDiff + projectResult.wordsDiff
+                            }
+                        }
                     })
 
                     const data = Object.entries(resultByUser).map(([userId, result]) => {
-                        if (result.length === 0) {
-                            return ''
-                        }
+                        const {userName, wordsDiff } = result
 
-                        const {userName} = result[0]
-                        const wordsSum = result.reduce((partialSum, a) => partialSum + a.wordsWritten, 0);
-                        let details = ''
-
-                        if (result.length > 1) {
-                            details = result.map(x => `${x.projectName} - ${x.wordsWritten}`).join(', ')
-                        } else {
-                            details = result[0].projectName
-                        }
-
-                        return {userName, wordsSum, details}
+                        return {userName, wordsDiff}
                     })
 
-                    const dataSorted = data.sort((a,b) => b.wordsSum - a.wordsSum)
-                        .map(x =>  `${x.userName}: ${x.wordsSum} (${x.details})`)
+                    const dataSorted = data.sort((a,b) => b.wordsDiff - a.wordsDiff)
+                        .map(x =>  `${x.userName}: ${x.wordsDiff}`)
 
-                    ctx.reply(`Статистика марафона:\n\n${dataSorted.join('\n')}`);
+                    ctx.reply(`Статистика марафона:\n\n${dataSorted.join('\n')}`,
+                        { parse_mode: 'Markdown' });
                 }).catch((err) => {
                 ctx.reply(errors.generic);
                 sendErrorToAdmin(err)

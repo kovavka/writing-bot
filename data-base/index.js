@@ -162,7 +162,7 @@ function setResult(projectId, words, today) {
     });
 }
 
-function getStatistics(dateStart, dateEnd) {
+function getStatistics(projectStart, projectEnd, resultDate) {
     return new Promise((resolve, reject) => {
         db.all(`
 SELECT 
@@ -190,8 +190,8 @@ LEFT JOIN (
         WHERE dr1.projectId = dr2.projectId
     )
 ) dr ON p.id = dr.projectId
-WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
-`, [dateStart, dateEnd], (err, rows) => {
+WHERE p.dateStart >= ? AND p.dateEnd <= ? ${resultDate != null ? 'AND dr.date = ?' : ''} AND p.hidden = 0;
+`, resultDate != null ? [projectStart, projectEnd, resultDate] : [projectStart, projectEnd], (err, rows) => {
             if (err) {
                 console.error('Error querying database:', err.message);
                 reject(err);
