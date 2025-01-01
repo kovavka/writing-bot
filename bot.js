@@ -322,6 +322,7 @@ function getAdminStat(ctx) {
                     const {userName} = result[0]
                     const startSum = result.reduce((partialSum, a) => partialSum + a.wordsStart, 0);
                     const wordsSum = result.reduce((partialSum, a) => partialSum + a.latestWords, 0);
+                    const diff = wordsSum - startSum
                     let details = ''
 
                     if (result.length > 1) {
@@ -330,10 +331,10 @@ function getAdminStat(ctx) {
                         details = result[0].projectName
                     }
 
-                    return {userName, wordsSum, startSum, details}
-                }).map(x =>  `${x.userName} | ${x.startSum} | ${x.wordsSum} | ${x.details}`)
+                    return {userName, wordsSum, startSum, details, diff}
+                }).map(x =>  `${x.userName} | ${x.startSum} | ${x.wordsSum} | ${x.diff} | ${x.details}`)
 
-                ctx.reply(`Статистика марафона:\n\nИмя | Старт | Всего | Детали\n\n${data.join('\n')}`,
+                ctx.reply(`Статистика марафона:\n\nИмя | Название | Старт | Всего | Разница | Детали\n\n${data.join('\n')}`,
                     { parse_mode: 'Markdown' });
             }).catch((err) => {
             ctx.reply(errors.generic);
@@ -362,7 +363,6 @@ bot.command('statToday', (ctx) => {
             // today by server time
             const today = moment().format(DATE_FORMAT)
             const dateFrom = '2024-12-20'
-            console.log(today)
             db.getStatistics(dateFrom, MARATHON_END_STR, today)
                 .then(rows => {
                     const resultByUser = {}
