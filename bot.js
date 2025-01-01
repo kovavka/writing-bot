@@ -45,15 +45,19 @@ const texts = {
     help: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
     welcome: `Ух, новая ведьмочка! Меня зовут Перо, я самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!\n\nА как мне называть тебя?`,
     userNameSet: `Приятно познакомиться! Теперь я могу помочь тебе создать твой первый гримуар`,
+    userNameUpdated: `Приятно познакомиться!`,
     welcomeBack: (name) => `С возвращением, ${name}!`,
     setName: `Как будет называться твоя волшебная книга?`,
     setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
     setGoal: `Сколько слов ты хочешь написать за это время?`,
-    projectCreated: (finalWords, daysLeft, dayGoal)=> `WriteUp! Время писать! Через ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} В твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, wordForms.words)}.
+    projectCreated: (finalWords, daysLeft, dayGoal)=> `WriteUp! Время писать! Через ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, wordForms.words)}.
 Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, wordForms.words)}`,
     allProjects: `Ууху, вот все ваши гримуары`,
     zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
-    selectProject: `Ууху, открываю гримуар`,
+    selectProject: (name) => `Ууху, открываю гримуар _${name}_`,
+    editProject: `Конечно, что ты хочешь поменять?`,
+    projectRenamed: `Хорошее имя, ведьмочка!`,
+    projectRemoved: `Гримуар удалён!`,
     setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько теперь слов в твоём гримуаре?`,
     todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
     todaySavedNegative: (wordsDiff) => `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}.`,
@@ -61,11 +65,17 @@ const texts = {
     statistics: (daysLeft, wordsLeft) => `Впереди еще ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
     statisticsAchieved: `Молодец, ведьмочка, ты дописала манускрипт!`,
     status: `Я здесь, ведьмочка. Ухуу!`,
+    settings: `Чем я могу тебе помочь?`,
+    changeName: `Разумеется, какое имя ты хочешь взять?`,
 }
 
 const buttons = {
     newProject: { text: 'Новый гримуар 📜', callback_data: `new_project` },
     allProjects: { text: 'Гримуары 📚', callback_data: `all_projects` },
+    changeName: { text: 'Изменить имя 🦄', callback_data: `change_name` },
+    editProject: (projectId) => ({ text: 'Редактировать ✏️', callback_data: `edit_project_${projectId}` }),
+    renameProject: (projectId) => ({ text: 'Переименовать 📝', callback_data: `rename_project_${projectId}` }),
+    removeProject: (projectId) => ({ text: 'Удалить ❌', callback_data: `remove_project_${projectId}` }),
     setToday: (projectId) => ({ text: 'Записать заклинание 🖋️', callback_data: `update_project_${projectId}` }),
     statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
 }
@@ -259,6 +269,24 @@ bot.command('help', (ctx) => {
     }
 })
 
+bot.command('settings', (ctx) => {
+    try {
+        clearSession(ctx)
+        ctx.reply(texts.settings, {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        buttons.changeName,
+                    ],
+                ],
+            },
+        });
+    }  catch (err) {
+        ctx.reply(errors.generic);
+        sendErrorToAdmin(err)
+    }
+})
+
 bot.command('status', (ctx) => {
     const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
 
@@ -344,6 +372,13 @@ bot.on('callback_query', (ctx) => {
 
             ctx.reply(texts.setToday);
             ctx.answerCbQuery();
+        } else if (callbackData.startsWith('change_name')) {
+            ctx.session[userId] = {
+                waitingForNewUserName: true,
+            };
+
+            ctx.reply(texts.changeName);
+            ctx.answerCbQuery();
         } else if (callbackData.startsWith('stat_project_')) {
             const [,,projectId] = callbackData.split('_');
 
@@ -356,19 +391,73 @@ bot.on('callback_query', (ctx) => {
         } else if (callbackData.startsWith('project_')) {
             const [,projectId] = callbackData.split('_');
 
-            ctx.reply(texts.selectProject,
+            db.getProject(projectId).then(row => {
+                ctx.reply(texts.selectProject(row.name),
+                    {
+                        parse_mode: 'Markdown',
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    buttons.editProject(projectId)
+                                ],
+                                [
+                                    buttons.setToday(projectId),
+                                    buttons.statistics(projectId),
+                                ],
+                            ],
+                        },
+                    });
+
+                ctx.answerCbQuery();
+            }).catch(err => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+                ctx.answerCbQuery();
+            })
+        } else if (callbackData.startsWith('edit_project_')) {
+            const [,,projectId] = callbackData.split('_');
+
+            ctx.reply(texts.editProject,
                 {
                     reply_markup: {
                         inline_keyboard: [
                             [
-                                buttons.setToday(projectId),
-                                buttons.statistics(projectId),
+                                buttons.renameProject(projectId),
+                                buttons.removeProject(projectId),
                             ],
                         ],
                     },
                 });
 
             ctx.answerCbQuery();
+        } else if (callbackData.startsWith('rename_project_')) {
+            const [,,projectId] = callbackData.split('_');
+
+            ctx.session[userId] = { waitingForProjectNewName: true, projectId };
+            ctx.reply(texts.setName);
+
+            ctx.answerCbQuery();
+        } else if (callbackData.startsWith('remove_project_')) {
+            const [,,projectId] = callbackData.split('_');
+            const today =  getDateStr(getToday())
+            db.hideProject(projectId, today).then(() => {
+                ctx.reply(texts.projectRemoved,
+                    {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    buttons.allProjects,
+                                    buttons.newProject,
+                                ],
+                            ],
+                        },
+                    });
+                ctx.answerCbQuery();
+            }).catch(err => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+                ctx.answerCbQuery();
+            })
         } else {
             ctx.reply(errors.unknown);
             ctx.answerCbQuery();
@@ -426,6 +515,34 @@ bot.on('text', (ctx) => {
                 sessionData.waitingForProjectName = false;
                 sessionData.projectName = userInput
                 sessionData.waitingForWordsStart = true;
+            } else {
+                ctx.reply(errors.nameInvalid);
+            }
+        } else if (sessionData.waitingForProjectNewName) {
+            if (userInput != null && !(/('|--|;)/.test(userInput))) {
+                const {projectId} = sessionData
+
+               db.renameProject(projectId, userInput)
+                   .then(() => {
+                       ctx.reply(texts.projectRenamed, {
+                           reply_markup: {
+                               inline_keyboard: [
+                                   [
+                                       buttons.editProject(projectId)
+                                   ],
+                                   [
+                                       buttons.setToday(projectId),
+                                       buttons.statistics(projectId),
+                                   ],
+                               ],
+                           },
+                       });
+                   }).catch((err) => {
+                       ctx.reply(errors.generic);
+                       sendErrorToAdmin(err)
+                   })
+
+                sessionData.waitingForProjectNewName = false;
             } else {
                 ctx.reply(errors.nameInvalid);
             }
@@ -491,6 +608,7 @@ bot.on('text', (ctx) => {
         } else if (sessionData.waitingForUserName) {
             if (userInput != null && !(/('|--|;)/.test(userInput))) {
                 db.updateUser(userId, userInput)
+
                 ctx.reply(texts.userNameSet, {
                     reply_markup: {
                         inline_keyboard: [
@@ -500,7 +618,27 @@ bot.on('text', (ctx) => {
                         ]
                     },
                 });
+
                 sessionData.waitingForUserName = false;
+            } else {
+                ctx.reply(errors.nameInvalid);
+            }
+        } else if (sessionData.waitingForNewUserName) {
+            if (userInput != null && !(/('|--|;)/.test(userInput))) {
+                db.updateUser(userId, userInput)
+
+                ctx.reply(texts.userNameUpdated , {
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                buttons.newProject,
+                                buttons.allProjects
+                            ]
+                        ]
+                    },
+                });
+
+                sessionData.waitingForNewUserName = false;
             } else {
                 ctx.reply(errors.nameInvalid);
             }
