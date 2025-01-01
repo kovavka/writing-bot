@@ -57,6 +57,7 @@ const texts = {
     selectProject: `Ууху, открываю гримуар`,
     editProject: `Конечно, что ты хочешь поменять?`,
     projectRenamed: `Хорошее имя, ведьмочка!`,
+    projectRemoved: `Гримуар удалён!`,
     setToday: `Надеюсь, твой день прошел хорошо, расскажи Перо, сколько теперь слов в твоём гримуаре?`,
     todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
     todaySavedNegative: (wordsDiff) => `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}.`,
@@ -391,22 +392,28 @@ bot.on('callback_query', (ctx) => {
         } else if (callbackData.startsWith('project_')) {
             const [,projectId] = callbackData.split('_');
 
-            ctx.reply(texts.selectProject,
-                {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                buttons.editProject(projectId)
+            db.getProject(projectId).then(row => {
+                ctx.reply(texts.selectProject,
+                    {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    buttons.editProject(projectId)
+                                ],
+                                [
+                                    buttons.setToday(projectId),
+                                    buttons.statistics(projectId),
+                                ],
                             ],
-                            [
-                                buttons.setToday(projectId),
-                                buttons.statistics(projectId),
-                            ],
-                        ],
-                    },
-                });
+                        },
+                    });
 
-            ctx.answerCbQuery();
+                ctx.answerCbQuery();
+            }).catch(err => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+                ctx.answerCbQuery();
+            })
         } else if (callbackData.startsWith('edit_project_')) {
             const [,,projectId] = callbackData.split('_');
 
@@ -440,6 +447,27 @@ bot.on('callback_query', (ctx) => {
                 });
 
             ctx.answerCbQuery();
+        } else if (callbackData.startsWith('remove_project_')) {
+            const [,,projectId] = callbackData.split('_');
+            const today =  getDateStr(getToday())
+            db.hideProject(projectId, today).then(() => {
+                ctx.reply(texts.projectRemoved,
+                    {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [
+                                    buttons.allProjects,
+                                    buttons.newProject,
+                                ],
+                            ],
+                        },
+                    });
+                ctx.answerCbQuery();
+            }).catch(err => {
+                ctx.reply(errors.generic);
+                sendErrorToAdmin(err)
+                ctx.answerCbQuery();
+            })
         } else {
             ctx.reply(errors.unknown);
             ctx.answerCbQuery();
@@ -504,7 +532,7 @@ bot.on('text', (ctx) => {
             if (userInput != null && !(/('|--|;)/.test(userInput))) {
                 const {projectId} = sessionData
 
-               db.updateProject(projectId, userInput)
+               db.renameProject(projectId, userInput)
                    .then(() => {
                        ctx.reply(texts.projectRenamed);
                    }).catch((err) => {

@@ -65,9 +65,21 @@ function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) 
     });
 }
 
-function updateProject(projectId, name) {
+function renameProject(projectId, name) {
     return new Promise((resolve, reject) => {
         db.run(`UPDATE Project SET name = ? WHERE id = ?`, [name, projectId], function(err) {
+            if (err) {
+                reject(err);
+            } else {
+                resolve();
+            }
+        });
+    });
+}
+
+function hideProject(projectId, date) {
+    return new Promise((resolve, reject) => {
+        db.run(`UPDATE Project SET hidden = 1, hiddenDate = ? WHERE id = ?`, [date, projectId], function(err) {
             if (err) {
                 reject(err);
             } else {
@@ -95,7 +107,7 @@ function getDayResults(projectId) {
 
 function getProjects(userId) {
     return new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM Project WHERE userId = ?`, [userId], (err, rows) => {
+        db.all(`SELECT * FROM Project WHERE userId = ? AND hidden = 0`, [userId], (err, rows) => {
             if (err) {
                 console.error('Error querying database:', err.message);
                 reject(err);
@@ -178,7 +190,7 @@ LEFT JOIN (
         WHERE dr1.projectId = dr2.projectId
     )
 ) dr ON p.id = dr.projectId
-WHERE p.dateStart >= ? AND p.dateEnd <= ?;
+WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
 `, [dateStart, dateEnd], (err, rows) => {
             if (err) {
                 console.error('Error querying database:', err.message);
@@ -198,7 +210,8 @@ module.exports = {
     addUser,
     updateUser,
     createProject,
-    updateProject,
+    renameProject,
+    hideProject,
     getDayResults,
     getProjects,
     getProject,
