@@ -323,18 +323,12 @@ function getAdminStat(ctx) {
                     const startSum = result.reduce((partialSum, a) => partialSum + a.wordsStart, 0);
                     const wordsSum = result.reduce((partialSum, a) => partialSum + a.latestWords, 0);
                     const diff = wordsSum - startSum
-                    let details = ''
+                    const joinedName = result.map(x => x.projectName).join('; ')
 
-                    if (result.length > 1) {
-                        details = result.map(x => `${x.projectName}: (${x.wordsStart} -> ${x.latestWords})`).join('; ')
-                    } else {
-                        details = result[0].projectName
-                    }
+                    return {userName, joinedName, wordsSum, startSum, diff}
+                }).map(x =>  `${x.userName} | ${x.joinedName} | ${x.startSum} | ${x.wordsSum} | ${x.diff}`)
 
-                    return {userName, wordsSum, startSum, details, diff}
-                }).map(x =>  `${x.userName} | ${x.startSum} | ${x.wordsSum} | ${x.diff} | ${x.details}`)
-
-                ctx.reply(`Статистика марафона:\n\nИмя | Название | Старт | Всего | Разница | Детали\n\n${data.join('\n')}`,
+                ctx.reply(`Статистика марафона:\n\nИмя | Название | Старт | Всего | Разница\n\n${data.join('\n')}`,
                     { parse_mode: 'Markdown' });
             }).catch((err) => {
             ctx.reply(errors.generic);
