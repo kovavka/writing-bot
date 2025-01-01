@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS DayResult (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    projectId INTEGER NOT NULL,
+    date TEXT NOT NULL,
+    words INTEGER NOT NULL,
+    FOREIGN KEY (projectId) REFERENCES Project (id)
+)

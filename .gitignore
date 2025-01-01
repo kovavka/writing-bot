@@ -8,3 +8,4 @@ data-base/*.db
 .env
 
 app.log
+backups

@@ -111,7 +111,7 @@ function getToday() {
 }
 
 function getDateStr(date = getToday()) {
-    return date.tz(TIME_ZONE).format('YYYY-MM-DD');
+    return date.tz(TIME_ZONE).format(DATE_FORMAT);
 }
 
 bot.start((ctx) => {

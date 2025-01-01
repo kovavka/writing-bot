@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS Project (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    dateStart TEXT NOT NULL,
+    dateEnd TEXT NOT NULL,
+    wordsStart INTEGER NOT NULL,
+    wordsGoal INTEGER NOT NULL,
+    FOREIGN KEY (userId) REFERENCES User (id)
+)
