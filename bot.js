@@ -356,15 +356,17 @@ bot.command('statToday', (ctx) => {
             // today by server time
             const today = moment().format(DATE_FORMAT)
             const dateFrom = '2024-12-20'
-            db.getStatistics(dateFrom, MARATHON_END_STR, today)
+            db.getTodayStatistics(today)
                 .then(rows => {
+                    console.log(rows)
                     const resultByUser = {}
                     rows.forEach(row => {
-                        const {userId, userName, wordsStart, latestWords} = row
+                        const {userId, userName, wordsStart, lastResultWords, todayWords } = row
+                        const prevWords = lastResultWords != null ? lastResultWords : wordsStart
 
                         const projectResult = {
                             userName,
-                            wordsDiff: (latestWords != null) ? latestWords - wordsStart : 0,
+                            wordsDiff: (todayWords != null) ? todayWords - prevWords : 0,
                         }
 
                         if (resultByUser[userId] === undefined) {
@@ -388,6 +390,7 @@ bot.command('statToday', (ctx) => {
                         .map(x =>  `${x.userName}: ${x.wordsDiff}`)
 
                     ctx.reply(dataSorted.join('\n'));
+
                 }).catch((err) => {
                 ctx.reply(errors.generic);
                 sendErrorToAdmin(err)

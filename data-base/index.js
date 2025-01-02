@@ -198,7 +198,7 @@ function setResult(projectId, words, today) {
     });
 }
 
-function getStatistics(projectStart, projectEnd, resultDate) {
+function getStatistics(projectStart, projectEnd) {
     return new Promise((resolve, reject) => {
         db.all(`
 SELECT 
@@ -226,8 +226,49 @@ LEFT JOIN (
         WHERE dr1.projectId = dr2.projectId
     )
 ) dr ON p.id = dr.projectId
-WHERE p.dateStart >= ? AND p.dateEnd <= ? ${resultDate != null ? 'AND dr.date = ?' : ''} AND p.hidden = 0;
-`, resultDate != null ? [projectStart, projectEnd, resultDate] : [projectStart, projectEnd], (err, rows) => {
+WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
+`, [projectStart, projectEnd], (err, rows) => {
+            if (err) {
+                console.error('Error querying database:', err.message);
+                reject(err);
+            } else if (rows) {
+                resolve(rows)
+            } else {
+                resolve([])
+            }
+        });
+    });
+}
+
+function getTodayStatistics(resultDate) {
+    return new Promise((resolve, reject) => {
+        db.all(`
+SELECT 
+    dr1.date AS todayDate,
+    dr1.words AS todayWords,
+    dr2.date AS lastResultDate,
+    dr2.words AS lastResultWords,
+    p.name AS projectName,
+    p.wordsStart,
+    u.id AS userId,
+    u.name AS userName
+FROM DayResult dr1
+JOIN Project p ON p.id = dr1.projectId
+JOIN User u ON u.id = p.userId
+LEFT JOIN (
+    SELECT 
+        projectId, 
+        date, 
+        words 
+    FROM DayResult res1
+    WHERE res1.date = (
+        SELECT MAX(res2.date)
+        FROM DayResult res2
+        WHERE res1.projectId = res2.projectId AND res2.date < ?
+    )
+) dr2 ON dr1.projectId = dr2.projectId
+WHERE dr1.date = ?
+`, [resultDate, resultDate], (err, rows) => {
             if (err) {
                 console.error('Error querying database:', err.message);
                 reject(err);
@@ -255,6 +296,7 @@ module.exports = {
     getPrevDayResult,
     getCurrentWords,
     getStatistics,
+    getTodayStatistics,
     close,
 }
 
