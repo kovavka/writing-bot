@@ -1,109 +1,33 @@
-// const TelegramBot = require('node-telegram-bot-api');
-const { Telegraf, session } = require('telegraf');
-const moment = require('moment-timezone');
-const path = require('path');
+import { Telegraf, session } from 'telegraf'
+import moment from 'moment-timezone'
+import { getChart } from './chart'
+import db from './database'
+import {TIME_ZONE, DATE_FORMAT, TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID} from '../shared/variables'
+import {
+    isAdmin,
+    initSession,
+    clearSession, getToday, dateToString, getTodayString
+} from '../shared/utils'
+import * as commands from "./commands";
+import {buttons, errors, texts} from "../copy/pero";
 
-const envConfigDir = path.resolve(__dirname, '../../.env')
-require('dotenv').config({
-    path: envConfigDir
-});
 
-const {getChart} = require('./chart')
-
-const db  = require('./database')
-
-const { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } = process.env
-
-const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
+export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
-
-const { TIME_ZONE, DATE_FORMAT } = require('../shared/variables')
 
 const MARATHON_END_STR = '2025-01-31'
 const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
 
-const {
-    isAdmin,
-    sendErrorToAdmin,
-    initSession,
-    clearSession
-} = require('../shared/utils')
 
-function getWordForm(number, forms) {
-   if (number % 10 === 1 && number % 100 !== 11) {
-       return forms[0]
-   }
-   if (number % 10 > 1 && number % 10 < 5 && (number % 100 < 10 || number % 100 > 20)) {
-        return forms[1]
-   }
-
-   return forms[2]
-}
-
-const errors = {
-    unknown: `Перо знает много, но не понимает, что ведьмочка от него хочет. Используй заклинание /help`,
-    nameInvalid: `Ухх! Это очень опасное заклинание. Лучше выбрать другое имя`,
-    numberInvalid: `Ой, мне нужно было число, а не заклинание`,
-    generic: `Ой, кажется, это заклинание прошло не очень удачно. Пожалуйста, обратись к главному магистру`,
-}
-
-const wordForms = {
-    words: ['слово', 'слова', 'слов'],
-    days: ['день', 'дня', 'дней'],
-}
-
-const texts = {
-    help: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
-    welcome: `Ух, новая ведьмочка! Меня зовут Перо, я самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!\n\nА как мне называть тебя?`,
-    userNameSet: `Приятно познакомиться! Теперь я могу помочь тебе создать твой первый гримуар`,
-    userNameUpdated: `Приятно познакомиться!`,
-    welcomeBack: (name) => `С возвращением, ${name}!`,
-    setName: `Как будет называться твоя волшебная книга?`,
-    setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
-    setGoal: `Сколько слов ты хочешь написать за это время?`,
-    projectCreated: (finalWords, daysLeft, dayGoal)=> `WriteUp! Время писать! Через ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, wordForms.words)}.
-Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, wordForms.words)}`,
-    allProjects: `Ууху, вот все ваши гримуары`,
-    zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
-    selectProject: (name) => `Ууху, открываю гримуар _${name}_`,
-    editProject: `Конечно, что ты хочешь поменять?`,
-    projectRenamed: `Хорошее имя, ведьмочка!`,
-    projectRemoved: `Гримуар удалён!`,
-    setToday: (words) => `Надеюсь, твой день прошел хорошо. В прошлый раз гримуаре было ${words} ${getWordForm(words, wordForms.words)}. Расскажи Перо, сколько слов в нём сейчас?`,
-    todaySaved: (wordsDiff) => `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, wordForms.words)}. Заклинание все крепче, у нас все получается!`,
-    todaySavedNegative: (wordsDiff) => `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, wordForms.words)}.`,
-    todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
-    statistics: (daysLeft, wordsLeft) => `Впереди еще ${daysLeft} ${getWordForm(daysLeft, wordForms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, wordForms.words)}. Я верю в тебя, моя ведьмочка!`,
-    statisticsAchieved: `Молодец, ведьмочка, ты дописала манускрипт!`,
-    status: `Я здесь, ведьмочка. Ухуу!`,
-    settings: `Чем я могу тебе помочь?`,
-    changeName: `Разумеется, какое имя ты хочешь взять?`,
-}
-
-const buttons = {
-    newProject: { text: 'Новый гримуар 📜', callback_data: `new_project` },
-    allProjects: { text: 'Гримуары 📚', callback_data: `all_projects` },
-    changeName: { text: 'Изменить имя 🦄', callback_data: `change_name` },
-    editProject: (projectId) => ({ text: 'Редактировать ✏️', callback_data: `edit_project_${projectId}` }),
-    renameProject: (projectId) => ({ text: 'Переименовать 📝', callback_data: `rename_project_${projectId}` }),
-    removeProject: (projectId) => ({ text: 'Удалить ❌', callback_data: `remove_project_${projectId}` }),
-    setToday: (projectId) => ({ text: 'Записать заклинание 🖋️', callback_data: `update_project_${projectId}` }),
-    statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
+function sendErrorToAdmin(err) {
+    bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
+        .catch(() => {});
 }
 
 
 function getRemainingDays(dateFrom, dateTo) {
     // including both
     return dateTo.startOf('day').diff(dateFrom.startOf('day'), 'days') + 1
-}
-
-function getToday() {
-    const date = moment();
-    return date.tz(TIME_ZONE);
-}
-
-function getDateStr(date = getToday()) {
-    return date.tz(TIME_ZONE).format(DATE_FORMAT);
 }
 
 bot.start((ctx) => {
@@ -269,11 +193,7 @@ bot.command('settings', (ctx) => {
     }
 })
 
-bot.command('status', (ctx) => {
-    const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
-
-    ctx.reply(`${texts.status}\nВремя: ${time}`)
-})
+bot.command('status', commands.status)
 
 function getAdminStat(ctx) {
     if (isAdmin(ctx)) {
@@ -484,7 +404,7 @@ bot.on('callback_query', (ctx) => {
             ctx.answerCbQuery();
         } else if (callbackData.startsWith('remove_project_')) {
             const [,,projectId] = callbackData.split('_');
-            const today =  getDateStr(getToday())
+            const today =  getTodayString()
             db.hideProject(projectId, today).then(() => {
                 ctx.reply(texts.projectRemoved,
                     {
@@ -519,7 +439,7 @@ function createProjectCommand(ctx, userId, projectName, wordsStart, goal) {
 
     const remainingDays = getRemainingDays(today, dateEnd)
 
-    db.createProject(userId, projectName, getDateStr(today), getDateStr(dateEnd), wordsStart, goal).then(id => {
+    db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal).then(id => {
         const dailyGoal = Math.ceil(goal / remainingDays)
         ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),
             {
@@ -622,12 +542,12 @@ bot.on('text', (ctx) => {
             const {projectId} = sessionData
             const currentWords = parseInt(userInput);
             if (!isNaN(currentWords)) {
-                const todaySrt = getDateStr(getToday())
-                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todaySrt)]).then(([project, result]) => {
+                const todayStr = getTodayString()
+                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todayStr)]).then(([project, result]) => {
                     const prevWords = result != null ? result.words : project.wordsStart
                     const wordsDiff = currentWords - prevWords
 
-                    db.setResult(projectId, currentWords, todaySrt)
+                    db.setResult(projectId, currentWords, todayStr)
 
                     const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
                     ctx.reply(goalAchieved ? texts.todayAchieved : wordsDiff >= 0 ? texts.todaySaved(wordsDiff) : texts.todaySavedNegative(wordsDiff), {
@@ -695,8 +615,6 @@ bot.on('text', (ctx) => {
         sendErrorToAdmin(err)
     }
 });
-
-bot.launch();
 
 console.log('Bot is running...');
 
