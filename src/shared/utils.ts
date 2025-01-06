@@ -1,26 +1,19 @@
 import moment, {Moment} from "moment-timezone";
 import {TIME_ZONE, DATE_FORMAT, ADMIN_ID} from "./variables"
-import {MessageContext, QueryContext} from "./types";
+import { SimpleContext } from "./types";
 
-export function isAdmin(ctx: MessageContext) {
+export function isAdmin(ctx: SimpleContext): boolean {
     const {id: userId} = ctx.from
-    const ifAdmin = userId.toString() === ADMIN_ID
-
-    // todo
-    // if (!ifAdmin) {
-    //     ctx.reply(errors.unknown);
-    // }
-
-    return ifAdmin
+    return userId.toString() === ADMIN_ID
 }
 
-export function initSession(ctx: QueryContext): void {
+export function initSession(ctx: SimpleContext): void {
     if (ctx.session == null) {
         ctx.session = {};
     }
 }
 
-export function clearSession(ctx: QueryContext): void {
+export function clearSession(ctx: SimpleContext): void {
     const {id: userId} = ctx.from
 
     if (ctx.session != null) {

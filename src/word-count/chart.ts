@@ -1,18 +1,18 @@
-const QuickChart = require('quickchart-js');
+import QuickChart from 'quickchart-js'
 
-function getChart(numberOfDays, data,  start, finish) {
+export function getChart(numberOfDays: number, data: number[], wordsStart: number, wordsEnd: number) {
     const chart = new QuickChart();
 
     const expectedData = []
     const labels = []
 
-    const dayStep = Math.ceil((finish - start) / numberOfDays)
-    const chartStep = Math.ceil((finish - start) / 2)
+    const dayStep = Math.ceil((wordsEnd - wordsStart) / numberOfDays)
+    const chartStep = Math.ceil((wordsEnd - wordsStart) / 2)
 
 
     for (let i = 0; i < numberOfDays; i++) {
-        const value = start + dayStep * (i + 1)
-        expectedData[i] = value > finish ? finish : value
+        const value = wordsStart + dayStep * (i + 1)
+        expectedData[i] = value > wordsEnd ? wordsEnd : value
         labels[i] = i + 1
     }
 
@@ -250,8 +250,8 @@ function getChart(numberOfDays, data,  start, finish) {
                                     "fontColor": "#666666",
                                     "fontStyle": "normal",
                                     "padding": 0,
-                                    "min": start,
-                                    "max": finish,
+                                    "min": wordsStart,
+                                    "max": wordsEnd,
                                     "stepSize": chartStep,
                                     "minRotation": 0,
                                     "maxRotation": 50,
@@ -307,8 +307,4 @@ function getChart(numberOfDays, data,  start, finish) {
         .setBackgroundColor('#fff');
 
     return chart.toBinary()
-}
-
-module.exports = {
-    getChart
 }

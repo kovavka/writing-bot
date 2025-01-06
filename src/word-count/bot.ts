@@ -1,6 +1,5 @@
 import { Telegraf, session } from 'telegraf'
 import moment from 'moment-timezone'
-import { getChart } from './chart'
 import db from './database'
 import {TIME_ZONE, DATE_FORMAT, TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID} from '../shared/variables'
 import {
@@ -10,6 +9,8 @@ import {
 } from '../shared/utils'
 import * as commands from "./commands";
 import {buttons, errors, texts} from "../copy/pero";
+import {getRemainingDays} from "./utils";
+import {adminStatToday} from "./commands";
 
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
@@ -19,137 +20,25 @@ const MARATHON_END_STR = '2025-01-31'
 const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
 
 
-function sendErrorToAdmin(err) {
+// todo type
+function sendErrorToAdmin(err: any) {
     bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
         .catch(() => {});
 }
 
-
-function getRemainingDays(dateFrom, dateTo) {
-    // including both
-    return dateTo.startOf('day').diff(dateFrom.startOf('day'), 'days') + 1
-}
-
-bot.start((ctx) => {
+bot.start(async (ctx) => {
     try {
-        // init and clear
-        ctx.session = {};
-
-        const {id: userId, first_name, last_name} = ctx.from
-
-        // just in case create user right away
-        db.getUser(userId).then(user => {
-            if (user == null) {
-                db.addUser(userId, `${first_name} ${last_name}`)
-                ctx.session[userId] = { waitingForUserName: true };
-                ctx.reply(texts.welcome)
-            } else {
-                ctx.reply(texts.welcomeBack(user.name), {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                buttons.allProjects
-                            ]
-                        ]
-                    },
-                });
-            }
-        }).catch((err) => {
-            ctx.reply(errors.generic);
-            sendErrorToAdmin(err)
-        })
+       await commands.start(ctx)
     } catch (err) {
         ctx.reply(errors.generic);
         sendErrorToAdmin(err)
     }
 });
 
-function sendStatistics(ctx, projectId) {
-    Promise.all([db.getDayResults(projectId), db.getProject(projectId)]).then(([rows, project]) => {
-        const data = []
-        const today = getToday()
-        const {dateStart: dateStartStr, dateEnd: dateEndStr, wordsStart, wordsGoal} = project
-
-        const dateStart = moment(dateStartStr, DATE_FORMAT)
-        const dateEnd = moment(dateEndStr, DATE_FORMAT)
-        const projectLength = getRemainingDays(dateStart, dateEnd)
-        const remainingDays = getRemainingDays(today, dateEnd)
-        const daysPassed = getRemainingDays(dateStart, today)
-
-        rows.forEach(({date, words}) => {
-            const rowDate = moment(date, DATE_FORMAT)
-            const index = getRemainingDays(dateStart, rowDate) - 1
-            data[index] = words
-        })
-
-        let prevRes = 0
-        // we use daysPassed to render bars until current date
-        for(let i = 0; i < daysPassed; i++) {
-            if (data[i] !== undefined) {
-                prevRes = data[i]
-            } else {
-                data[i] = prevRes
-            }
-        }
-
-        getChart(projectLength, data, wordsStart, wordsGoal + wordsStart).then((value) => {
-            const wordsLeft = wordsGoal + wordsStart - prevRes
-            ctx.replyWithPhoto({ source: value }, { caption: wordsLeft <= 0 ? texts.statisticsAchieved : texts.statistics(remainingDays, wordsLeft),
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            buttons.setToday(projectId),
-                        ],
-                    ],
-                }, });
-
-            ctx.answerCbQuery();
-        }).catch((err) => {
-            ctx.reply(errors.generic);
-            sendErrorToAdmin(err)
-
-            ctx.answerCbQuery();
-        })
-    }).catch((err) => {
-        ctx.reply(errors.generic);
-        sendErrorToAdmin(err)
-    })
-}
-
-function allProjectsCommand(ctx) {
-    clearSession(ctx)
-
-    const {id: userId} = ctx.from
-
-    db.getProjects(userId).then((rows) => {
-        if (rows.length === 0)  {
-            ctx.reply(texts.zeroProjects, {
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            buttons.newProject
-                        ]
-                    ]
-                },
-            });
-        } else {
-            ctx.reply(texts.allProjects, {
-                reply_markup: {
-                    inline_keyboard:
-                        rows.map(row => ([{ text: row.name, callback_data: `project_${row.id}` }]))
-
-                },
-            });
-        }
-    }).catch((err) => {
-        sendErrorToAdmin(err)
-        ctx.reply(errors.generic);
-    })
-}
-
 bot.command('all', (ctx) => {
     try {
-        allProjectsCommand(ctx)
+        clearSession(ctx)
+        commands.allProjects(ctx)
     }  catch (err) {
         ctx.reply(errors.generic);
         sendErrorToAdmin(err)
@@ -195,55 +84,10 @@ bot.command('settings', (ctx) => {
 
 bot.command('status', commands.status)
 
-function getAdminStat(ctx) {
-    if (isAdmin(ctx)) {
-        const dateFrom = '2024-12-20'
-        db.getStatistics(dateFrom, MARATHON_END_STR)
-            .then(rows => {
-                const resultByUser = {}
-                rows.forEach(row => {
-                    const {userId, userName, projectName, wordsStart, latestWords} = row
-                    if (resultByUser[userId] === undefined) {
-                        resultByUser[userId] = []
-                    }
-
-                    const userResult = resultByUser[userId]
-                    userResult.push({
-                        userName,
-                        projectName,
-                        wordsStart,
-                        latestWords: latestWords != null ? latestWords : wordsStart,
-                    })
-                })
-
-                const data = Object.entries(resultByUser).map(([userId, result]) => {
-                    if (result.length === 0) {
-                        return ''
-                    }
-
-                    const {userName} = result[0]
-                    const startSum = result.reduce((partialSum, a) => partialSum + a.wordsStart, 0);
-                    const wordsSum = result.reduce((partialSum, a) => partialSum + a.latestWords, 0);
-                    const diff = wordsSum - startSum
-                    const joinedName = result.map(x => x.projectName).join('; ')
-
-                    return {userName, joinedName, wordsSum, startSum, diff}
-                }).map(x =>  `${x.userName} | ${x.joinedName} | ${x.startSum} | ${x.wordsSum} | ${x.diff}`)
-
-                ctx.reply(`Имя | Название | Старт | Всего | Разница\n\n${data.join('\n')}`);
-            }).catch((err) => {
-            ctx.reply(errors.generic);
-            sendErrorToAdmin(err)
-        })
-    } else {
-        ctx.reply(errors.unknown)
-    }
-}
-
-bot.command('stat', (ctx) => {
+bot.command('stat', async (ctx) => {
     try {
         clearSession(ctx)
-        getAdminStat(ctx)
+        await commands.adminStat(ctx)
     }  catch (err) {
         ctx.reply(errors.generic);
         sendErrorToAdmin(err)
@@ -253,60 +97,14 @@ bot.command('stat', (ctx) => {
 bot.command('statToday', (ctx) => {
     try {
         clearSession(ctx)
-
-        if (isAdmin(ctx)) {
-            // today by server time
-            const today = moment().format(DATE_FORMAT)
-            const dateFrom = '2024-12-20'
-            db.getTodayStatistics(today)
-                .then(rows => {
-                    console.log(rows)
-                    const resultByUser = {}
-                    rows.forEach(row => {
-                        const {userId, userName, wordsStart, lastResultWords, todayWords } = row
-                        const prevWords = lastResultWords != null ? lastResultWords : wordsStart
-
-                        const projectResult = {
-                            userName,
-                            wordsDiff: (todayWords != null) ? todayWords - prevWords : 0,
-                        }
-
-                        if (resultByUser[userId] === undefined) {
-                            resultByUser[userId] = projectResult
-                        } else {
-                            const {wordsDiff} = resultByUser[userId]
-                            resultByUser[userId] = {
-                                userName: userName,
-                                wordsDiff: wordsDiff + projectResult.wordsDiff
-                            }
-                        }
-                    })
-
-                    const data = Object.entries(resultByUser).map(([userId, result]) => {
-                        const {userName, wordsDiff } = result
-
-                        return {userName, wordsDiff}
-                    })
-
-                    const dataSorted = data.sort((a,b) => b.wordsDiff - a.wordsDiff)
-                        .map(x =>  `${x.userName}: ${x.wordsDiff}`)
-
-                    ctx.reply(dataSorted.join('\n'));
-
-                }).catch((err) => {
-                ctx.reply(errors.generic);
-                sendErrorToAdmin(err)
-            })
-        } else {
-            ctx.reply(errors.unknown)
-        }
+        commands.adminStatToday(ctx)
     }  catch (err) {
         ctx.reply(errors.generic);
         sendErrorToAdmin(err)
     }
 })
 
-bot.on('callback_query', (ctx) => {
+bot.on('callback_query', async (ctx) => {
     try {
         const callbackData = ctx.callbackQuery.data;
         const {id: userId} = ctx.from
@@ -347,11 +145,10 @@ bot.on('callback_query', (ctx) => {
         } else if (callbackData.startsWith('stat_project_')) {
             const [,,projectId] = callbackData.split('_');
 
-            sendStatistics(ctx, projectId)
-
-            ctx.answerCbQuery();
+            await commands.projectStatistics(ctx, projectId)
         } else if (callbackData === 'all_projects') {
-            allProjectsCommand(ctx)
+            clearSession(ctx)
+            commands.allProjects(ctx)
             ctx.answerCbQuery();
         } else if (callbackData.startsWith('project_')) {
             const [,projectId] = callbackData.split('_');
