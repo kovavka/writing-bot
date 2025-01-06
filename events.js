@@ -10,7 +10,7 @@ const {
     createSprint,
     joinSprint,
     close
-} = require('./data-base')
+} = require('./src/word-count/data-base')
 
 const { TELEGRAM_BOT_TOKEN, ADMIN_ID } = process.env
 

@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:update": "node ./data-base/mirgate.js"
+    "db:update": "node src/word-count/database/mirgate.js"
   },
   "keywords": [],
   "author": "",

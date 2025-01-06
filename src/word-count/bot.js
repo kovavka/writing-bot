@@ -1,22 +1,33 @@
 // const TelegramBot = require('node-telegram-bot-api');
 const { Telegraf, session } = require('telegraf');
 const moment = require('moment-timezone');
-require('dotenv').config();
+const path = require('path');
+
+const envConfigDir = path.resolve(__dirname, '../../.env')
+require('dotenv').config({
+    path: envConfigDir
+});
 
 const {getChart} = require('./chart')
 
-const db  = require('./data-base')
+const db  = require('./database')
 
 const { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } = process.env
 
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
 
-const TIME_ZONE = 'Europe/Moscow'
-const DATE_FORMAT = 'YYYY-MM-DD'
+const { TIME_ZONE, DATE_FORMAT } = require('../shared/variables')
 
 const MARATHON_END_STR = '2025-01-31'
 const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
+
+const {
+    isAdmin,
+    sendErrorToAdmin,
+    initSession,
+    clearSession
+} = require('../shared/utils')
 
 function getWordForm(number, forms) {
    if (number % 10 === 1 && number % 100 !== 11) {
@@ -80,35 +91,6 @@ const buttons = {
     statistics: (projectId) => ({ text: 'Узнать будушее 🔮', callback_data: `stat_project_${projectId}` }),
 }
 
-function isAdmin(ctx) {
-    const {id: userId} = ctx.from
-    const ifAdmin = userId.toString() === ADMIN_ID
-
-    if (!ifAdmin) {
-        ctx.reply(errors.unknown);
-    }
-
-    return ifAdmin
-}
-
-function sendErrorToAdmin(err) {
-    bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
-        .catch(() => {});
-}
-
-function initSession(ctx) {
-    if (ctx.session == null) {
-        ctx.session = {};
-    }
-}
-
-function clearSession(ctx) {
-    const {id: userId} = ctx.from
-
-    if (ctx.session != null) {
-        ctx.session[userId] = {}
-    }
-}
 
 function getRemainingDays(dateFrom, dateTo) {
     // including both
