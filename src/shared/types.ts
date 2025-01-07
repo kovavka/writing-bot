@@ -10,14 +10,13 @@ import {CallbackQuery} from "@telegraf/types/markup";
 //
 // export type CommandContext = Parameters<Bot['command']>[1]
 
-type SessionContext = {
+type SessionData = {
    session?: {[key: number]: {}}
 }
 
-export type MessageContext = Context<Update.MessageUpdate<Message.TextMessage>> & SessionContext
-// export type MessageContext = Context<Update.MessageUpdate<Message.TextMessage>> & SessionContext
+type MessageContext = Context<Update.MessageUpdate<Message.TextMessage>>
 
-// export type QueryContext = NarrowedContext<Context<Update>, Update.CallbackQueryUpdate<CallbackQuery>>
+type AllowedProps = 'from' | 'reply' | 'answerCbQuery' | 'replyWithPhoto'
+export type SimpleContext  = Pick<MessageContext, AllowedProps> & SessionData
 
-type AllowedProps = 'from' | 'reply' | 'session' | 'answerCbQuery' | 'replyWithPhoto'
-export type SimpleContext  = Pick<MessageContext, AllowedProps>
+export type SessionContext = Pick<MessageContext, AllowedProps> & Required<SessionData>

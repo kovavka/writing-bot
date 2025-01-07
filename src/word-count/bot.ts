@@ -1,9 +1,9 @@
 import { Telegraf, session } from 'telegraf'
+import { callbackQuery } from "telegraf/filters"
 import moment from 'moment-timezone'
 import db from './database'
 import {TIME_ZONE, DATE_FORMAT, TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID} from '../shared/variables'
 import {
-    isAdmin,
     initSession,
     clearSession, getToday, dateToString, getTodayString
 } from '../shared/utils'
@@ -11,6 +11,7 @@ import * as commands from "./commands";
 import {buttons, errors, texts} from "../copy/pero";
 import {getRemainingDays} from "./utils";
 import {adminStatToday} from "./commands";
+import {queryMap} from "./queries";
 
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
@@ -106,15 +107,23 @@ bot.command('statToday', (ctx) => {
 
 bot.on('callback_query', async (ctx) => {
     try {
+        if (!ctx.has(callbackQuery("data"))) {
+            // todo add error
+            return
+        }
+
         const callbackData = ctx.callbackQuery.data;
         const {id: userId} = ctx.from
 
-        initSession(ctx)
-        if (callbackData === 'new_project') {
-            ctx.session[userId] = { waitingForProjectName: true };
+        const sessionContext = initSession(ctx)
 
-            ctx.reply(texts.setName);
-            ctx.answerCbQuery();
+        const [, queryCommand] = Object.entries(queryMap).find(([key]) => callbackData.startsWith(key)) ?? []
+        console.log(callbackData)
+        if (queryCommand !== undefined) {
+            // todo also clear session when bot receives all data it needs
+            clearSession(ctx)
+            await queryCommand(sessionContext)
+            await sessionContext.answerCbQuery();
         } else if (callbackData.startsWith('update_project_')) {
             const [,,projectId] = callbackData.split('_');
 
@@ -146,10 +155,6 @@ bot.on('callback_query', async (ctx) => {
             const [,,projectId] = callbackData.split('_');
 
             await commands.projectStatistics(ctx, projectId)
-        } else if (callbackData === 'all_projects') {
-            clearSession(ctx)
-            commands.allProjects(ctx)
-            ctx.answerCbQuery();
         } else if (callbackData.startsWith('project_')) {
             const [,projectId] = callbackData.split('_');
 
@@ -270,7 +275,27 @@ bot.on('text', (ctx) => {
             return
         }
 
-        if (sessionData.waitingForProjectName) {
+        if (sessionData.type === 'new_project') {
+            if (sessionData.stage === 'name') {
+                // todo check input by inputType
+                ctx.reply(texts.setStart);
+                // todo create chain of commands
+                sessionData.stage = 'wordsStart'
+                sessionData.inputType = 'number'
+                sessionData.projectName = userInput
+            } else if (sessionData.stage === 'wordsStart') {
+                const start = parseInt(userInput);
+                // todo check input by inputType
+
+                const {projectName} = sessionData
+                //todo remove after enabling custom goal
+                createProjectCommand(ctx, userId, projectName, start, 50000)
+
+                clearSession(ctx)
+            } else {
+                // todo error
+            }
+        } else if (sessionData.waitingForProjectName) {
             if (userInput != null && !(/('|--|;)/.test(userInput))) {
                 ctx.reply(texts.setStart);
 
