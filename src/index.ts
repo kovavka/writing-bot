@@ -1,3 +1,3 @@
-import {bot} from "./word-count/bot";
+import { bot } from './word-count/bot'
 
 bot.launch()
