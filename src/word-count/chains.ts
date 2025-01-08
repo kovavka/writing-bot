@@ -1,22 +1,21 @@
-import {ContextWithSession, SimpleContext, TextMessageContext} from "../shared/types";
-import {buttons, errors, texts} from "../copy/pero";
-import * as commands from "./commands";
+import {ContextWithSession, TextMessageContext} from "../shared/types";
+import {buttons, texts} from "../copy/pero";
 import {dateToString, getToday, getTodayString} from "../shared/utils";
 import {getRemainingDays} from "./utils";
-import db from './database'
-import {MARATHON_END_DATE} from "./variables";
+import * as db from './database'
+import {DEFAULT_PROJECT_NAME, MARATHON_END_DATE} from "./variables";
 
-export type MessageType = 'new_project' | 'change_name' | 'update_words'
-
+export type MessageType =
+    | 'new_project'
+    | 'rename_project'
+    | 'update_words'
+    | 'set_name'
+    | 'change_name'
 
 export type TextSessionData = {
     type: MessageType
-    stage: string
-    // stageData: {[key in string]: number | string}
+    stageIndex: number
 }
-
-
-type NewProjectStages = 'projectName' | 'wordsStart' | 'wordsGoal'
 
 export type NewProjectData = TextSessionData & {
     projectName?: string
@@ -27,28 +26,25 @@ export type SimpleProjectData = TextSessionData & {
     projectId?: number
 }
 
-export type ChainStage<T, D = TextSessionData> = {
-    name: T,
-    nextStage?: T,
-} & ({
-    inputType: 'number',
-    handler: (ctx: ContextWithSession<TextMessageContext>, userInput: number, sessionData: D) => Promise<void>
-    }|
-    {
+type ChainStage<T> =
+    | {
+        inputType: 'number',
+        handler: (ctx: ContextWithSession<TextMessageContext>, userInput: number, sessionData: T) => Promise<void>
+      }
+    | {
         inputType: 'string',
-        handler: (ctx: ContextWithSession<TextMessageContext>, userInput: string, sessionData: D) => Promise<void>
-    })
+        handler: (ctx: ContextWithSession<TextMessageContext>, userInput: string, sessionData: T) => Promise<void>
+      }
 
-export type ChainCommand<T, D> = {
-    type: MessageType
-    stages: ChainStage<T, D>[]
+export type TextChainCommand<T> = {
+    type: MessageType,
+    stages: ChainStage<T>[]
 }
 
 async function projectNameHandler(ctx: ContextWithSession, userInput: string, sessionData: NewProjectData): Promise<void> {
     await ctx.reply(texts.setStart);
     sessionData.projectName = userInput
 }
-
 
 async function createProjectCommand(ctx: ContextWithSession, projectName: string, wordsStart: number, goal: number): Promise<void> {
     const {id: userId} = ctx.from
@@ -58,7 +54,7 @@ async function createProjectCommand(ctx: ContextWithSession, projectName: string
 
     const remainingDays = getRemainingDays(today, dateEnd)
 
-    const projectId = db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal)
+    const projectId = await db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal)
 
     const dailyGoal = Math.ceil(goal / remainingDays)
     await ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),
@@ -75,29 +71,34 @@ async function createProjectCommand(ctx: ContextWithSession, projectName: string
         });
 }
 
-const DEFAULT_PROJECT_NAME = 'Без названия'
 
-async function wordsStartHandler(ctx: ContextWithSession, userInput: number, sessionData: NewProjectData): Promise<void> {
+async function wordsStartHandler(ctx: ContextWithSession, words: number, sessionData: NewProjectData): Promise<void> {
     const {projectName = DEFAULT_PROJECT_NAME} = sessionData
     //todo remove after enabling custom goal
-    await createProjectCommand(ctx, projectName, userInput, 50000)
+    await createProjectCommand(ctx, projectName, words, 50000)
 }
 
-const newProjectChain: ChainCommand<NewProjectStages, NewProjectData> = {
-    type: 'new_project',
-    stages: [
-        {
-            name: 'projectName',
-            inputType: 'string',
-            nextStage: 'wordsStart',
-            handler: projectNameHandler
+async function renameProjectHandler(ctx: ContextWithSession, projectName: string, sessionData: SimpleProjectData): Promise<void> {
+    const {projectId} = sessionData
+    if (projectId === undefined) {
+        return
+        // throw error?
+    }
+
+    await db.renameProject(projectId, projectName)
+    await ctx.reply(texts.projectRenamed, {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    buttons.editProject(projectId)
+                ],
+                [
+                    buttons.setToday(projectId),
+                    buttons.statistics(projectId),
+                ],
+            ],
         },
-        {
-            name: 'wordsStart',
-            inputType: 'number',
-            handler: wordsStartHandler
-        },
-    ]
+    });
 }
 
 async function currentWordsHandler(ctx: ContextWithSession, currentWords: number, sessionData: SimpleProjectData): Promise<void> {
@@ -108,7 +109,7 @@ async function currentWordsHandler(ctx: ContextWithSession, currentWords: number
     }
 
     const todayStr = getTodayString()
-    const [project, result] = await  Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todayStr)])
+    const [project, result] = await Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todayStr)])
 
     const prevWords = result != null ? result.words : project.wordsStart
     const wordsDiff = currentWords - prevWords
@@ -129,19 +130,83 @@ async function currentWordsHandler(ctx: ContextWithSession, currentWords: number
 
 }
 
-const updateWordsChain: ChainCommand<'update_words', NewProjectData> = {
-    type: 'update_words',
-    stages: [
-        {
-            name: 'update_words',
-            inputType: "number",
-            handler: currentWordsHandler
-        },
+async function updateUserName(ctx: ContextWithSession, userName: string, message: string): Promise<void> {
+    const {id: userId} = ctx.from
+    // todo add await
+    db.updateUser(userId, userName)
 
-    ]
+    await ctx.reply(message, {
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    buttons.newProject,
+                    buttons.allProjects
+                ]
+            ]
+        },
+    });
 }
 
-export const textInputChain = [
-    newProjectChain,
-    updateWordsChain
+async function setUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
+    await updateUserName(ctx, userName, texts.userNameSet)
+}
+
+async function changeUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
+    await updateUserName(ctx, userName, texts.userNameUpdated)
+}
+
+export type AnySessionData = NewProjectData | SimpleProjectData | TextSessionData
+
+export const textInputCommands: TextChainCommand<AnySessionData>[] = [
+    {
+        type: 'new_project',
+        stages: [
+            {
+                // project name
+                inputType: 'string',
+                handler: projectNameHandler
+            },
+            {
+                // words start
+                inputType: 'number',
+                handler: wordsStartHandler
+            },
+        ]
+    },
+    {
+        type: 'rename_project',
+        stages: [
+            {
+                inputType: "string",
+                handler: renameProjectHandler
+            }
+        ]
+    },
+    {
+        type: 'update_words',
+        stages: [
+            {
+                inputType: "number",
+                handler: currentWordsHandler
+            }
+        ]
+    },
+    {
+        type: 'set_name',
+        stages: [
+            {
+                inputType: "string",
+                handler: setUserNameHandler
+            }
+        ]
+    },
+    {
+        type: 'change_name',
+        stages: [
+            {
+                inputType: "string",
+                handler: changeUserNameHandler
+            }
+        ]
+    },
 ]

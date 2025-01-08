@@ -1,6 +1,6 @@
 import { Telegraf, session } from 'telegraf'
 import { callbackQuery } from "telegraf/filters"
-import db from './database'
+import * as db from './database'
 import {TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID} from '../shared/variables'
 import {
     initSession,
@@ -11,12 +11,11 @@ import {buttons, errors, texts} from "../copy/pero";
 import {queryMap} from "./queries";
 import {ContextWithSession, TextMessageContext} from "../shared/types";
 import {
-    MessageType,
     TextChainCommand,
     textInputCommands,
-    TextSessionData,
     AnySessionData
-} from "./text-commands";
+} from "./chains";
+import {startNewChain} from "./commands";
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
@@ -105,16 +104,6 @@ bot.command('statToday', (ctx) => {
         sendErrorToAdmin(err)
     }
 })
-
-
-function startNewChain(ctx: ContextWithSession, type: MessageType): void {
-    const {id: userId} = ctx.from
-    ctx.session[userId] = <TextSessionData>{
-        ...ctx.session[userId] ?? {},
-        type: type,
-        stageIndex: 0
-    }
-}
 
 bot.on('callback_query', async (ctx) => {
     try {

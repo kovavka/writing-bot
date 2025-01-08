@@ -1,13 +1,13 @@
-import {MiddlewareFn, Context} from "telegraf";
-import {getToday, isAdmin} from "../shared/utils";
-import {ADMIN_ID, DATE_FORMAT, TIME_ZONE} from "../shared/variables";
-import {SimpleContext} from "../shared/types";
+import {clearSession, getToday, initSession, isAdmin} from "../shared/utils";
+import {DATE_FORMAT, TIME_ZONE} from "../shared/variables";
+import {ContextWithSession, SimpleContext} from "../shared/types";
 import {buttons, errors, texts} from "../copy/pero";
-import moment, {Moment} from "moment-timezone";
+import moment from "moment-timezone";
 import {getRemainingDays} from "./utils";
 import { getChart } from './chart'
-import db from './database'
+import * as db from './database'
 import {MARATHON_END_STR} from "./variables";
+import {MessageType, TextSessionData} from "./chains";
 
 export async function status(ctx: SimpleContext): Promise<void> {
     const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -15,16 +15,27 @@ export async function status(ctx: SimpleContext): Promise<void> {
     await ctx.reply(`${texts.status}\nВремя: ${time}`)
 }
 
+
+export function startNewChain(ctx: ContextWithSession, type: MessageType): void {
+    const {id: userId} = ctx.from
+    ctx.session[userId] = <TextSessionData>{
+        ...ctx.session[userId] ?? {},
+        type: type,
+        stageIndex: 0
+    }
+}
+
 export async function start(ctx: SimpleContext): Promise<void> {
-    // init and clear
-    ctx.session = {};
+    clearSession(ctx)
+    const sessionContext = initSession(ctx)
 
     const {id: userId, first_name, last_name} = ctx.from
 
     const user = await db.getUser(userId)
     if (user == null) {
         db.addUser(userId, `${first_name} ${last_name}`)
-        ctx.session[userId] = { waitingForUserName: true };
+
+        startNewChain(sessionContext, 'set_name')
         ctx.reply(texts.welcome)
     } else {
         ctx.reply(texts.welcomeBack(user.name), {

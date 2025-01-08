@@ -1,8 +1,8 @@
 import {ContextWithSession} from "../shared/types";
 import {buttons, texts} from "../copy/pero";
 import * as commands from "./commands";
-import {MessageType, SimpleProjectData, TextSessionData} from "./text-commands";
-import db from './database'
+import {MessageType, SimpleProjectData, TextSessionData} from "./chains";
+import * as db from './database'
 import {getTodayString} from "../shared/utils";
 
 export type QueryType =
