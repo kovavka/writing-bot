@@ -143,6 +143,11 @@ async function currentWordsHandler(
     db.getPrevDayResult(projectId, todayStr),
   ])
 
+  if (project === undefined) {
+    return
+    // throw error?
+  }
+
   const prevWords = result != null ? result.words : project.wordsStart
   const wordsDiff = currentWords - prevWords
 

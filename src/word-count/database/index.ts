@@ -1,9 +1,10 @@
-const sqlite3 = require('sqlite3').verbose()
-const path = require('path')
+import { DayResult, Project, User } from './types'
+import sqlite3 from 'sqlite3'
+import path from 'path'
 
 const db = new sqlite3.Database(
   path.join(__dirname, './word-count.db'),
-  err => {
+  (err: Error | null) => {
     if (err) {
       console.error('Error opening database:', err.message)
     } else {
@@ -13,7 +14,7 @@ const db = new sqlite3.Database(
 )
 
 export function close() {
-  db.close(err => {
+  db.close((err: Error | null) => {
     if (err) {
       console.error('Error closing database:', err.message)
     } else {
@@ -22,23 +23,26 @@ export function close() {
   })
 }
 
-export function getUser(id) {
+export function getUser(id: number): Promise<User | undefined> {
   return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM User WHERE id = ?`, [id], (err, row) => {
-      if (err) {
-        console.error('Error querying database:', err.message)
-        reject(err)
-      } else if (row) {
-        resolve(row)
-      } else {
-        resolve(undefined)
+    db.get(
+      `SELECT * FROM User WHERE id = ?`,
+      [id],
+      (err: Error | null, row: User | undefined) => {
+        if (err) {
+          console.error('Error querying database:', err.message)
+          reject(err)
+        } else {
+          resolve(row)
+        }
       }
-    })
+    )
   })
 }
 
-export function addUser(id, name) {
-  db.get(`SELECT id FROM User WHERE id = ?`, [id], (err, row) => {
+// todo add promise
+export function addUser(id: number, name: string) {
+  db.get(`SELECT id FROM User WHERE id = ?`, [id], (err: Error | null, row) => {
     if (err) {
       console.error('Error querying database:', err.message)
     } else if (row) {
@@ -48,27 +52,32 @@ export function addUser(id, name) {
   })
 }
 
-export function updateUser(id, name) {
-  db.run(`UPDATE User SET name = ? WHERE id = ?`, [name, id], err => {
-    if (err) {
-      console.error('Error querying database:', err.message)
+// todo add promise
+export function updateUser(id: number, name: string) {
+  db.run(
+    `UPDATE User SET name = ? WHERE id = ?`,
+    [name, id],
+    (err: Error | null) => {
+      if (err) {
+        console.error('Error querying database:', err.message)
+      }
     }
-  })
+  )
 }
 
 export function createProject(
-  userId,
-  name,
-  dateStart,
-  dateEnd,
-  wordsStart,
-  wordsGoal
+  userId: number,
+  name: string,
+  dateStart: string,
+  dateEnd: string,
+  wordsStart: number,
+  wordsGoal: number
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT INTO Project (userId, name, dateStart, dateEnd, wordsStart, wordsGoal) VALUES (?, ?, ?, ?, ?, ?)`,
       [userId, name, dateStart, dateEnd, wordsStart, wordsGoal],
-      function (err) {
+      function (err: Error | null) {
         if (err) {
           reject(err)
         } else {
@@ -79,12 +88,12 @@ export function createProject(
   })
 }
 
-export function renameProject(projectId, name) {
+export function renameProject(projectId: number, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE Project SET name = ? WHERE id = ?`,
       [name, projectId],
-      function (err) {
+      function (err: Error | null) {
         if (err) {
           reject(err)
         } else {
@@ -95,12 +104,12 @@ export function renameProject(projectId, name) {
   })
 }
 
-export function hideProject(projectId, date) {
+export function hideProject(projectId: number, date: string): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE Project SET hidden = 1, hiddenDate = ? WHERE id = ?`,
       [date, projectId],
-      function (err) {
+      function (err: Error | null) {
         if (err) {
           reject(err)
         } else {
@@ -111,60 +120,61 @@ export function hideProject(projectId, date) {
   })
 }
 
-export function getDayResults(projectId) {
+export function getDayResults(projectId: number): Promise<DayResult[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `SELECT * FROM DayResult WHERE projectId = ?`,
       [projectId],
-      (err, rows) => {
+      (err: Error | null, rows: DayResult[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (rows) {
-          resolve(rows)
         } else {
-          resolve([])
+          resolve(rows)
         }
       }
     )
   })
 }
 
-export function getProjects(userId) {
+export function getProjects(userId: number): Promise<Project[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `SELECT * FROM Project WHERE userId = ? AND hidden = 0`,
       [userId],
-      (err, rows) => {
+      (err: Error | null, rows: Project[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (rows) {
-          resolve(rows)
         } else {
-          resolve([])
+          resolve(rows)
         }
       }
     )
   })
 }
 
-export function getProject(projectId) {
+export function getProject(projectId: number): Promise<Project | undefined> {
   return new Promise((resolve, reject) => {
-    db.get(`SELECT * FROM Project WHERE id = ?`, [projectId], (err, row) => {
-      if (err) {
-        console.error('Error querying database:', err.message)
-        reject(err)
-      } else if (row) {
-        resolve(row)
-      } else {
-        resolve(undefined)
+    db.get(
+      `SELECT * FROM Project WHERE id = ?`,
+      [projectId],
+      (err: Error | null, row: Project | undefined) => {
+        if (err) {
+          console.error('Error querying database:', err.message)
+          reject(err)
+        } else {
+          resolve(row)
+        }
       }
-    })
+    )
   })
 }
 
-export function getCurrentWords(projectId) {
+// todo type
+export function getCurrentWords(
+  projectId: number
+): Promise<object | undefined> {
   return new Promise((resolve, reject) => {
     db.get(
       `
@@ -190,44 +200,44 @@ LEFT JOIN (
 ) dr ON p.id = dr.projectId
 WHERE p.id = ?`,
       [projectId],
-      (err, row) => {
+      (err: Error | null, row: any | undefined) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (row) {
-          resolve(row)
         } else {
-          resolve(undefined)
+          resolve(row)
         }
       }
     )
   })
 }
 
-export function getPrevDayResult(projectId, today) {
+export function getPrevDayResult(
+  projectId: number,
+  today: string
+): Promise<DayResult | undefined> {
   return new Promise((resolve, reject) => {
     db.get(
       `SELECT * FROM DayResult WHERE projectId = ? AND date < ? ORDER BY id DESC LIMIT 1`,
       [projectId, today],
-      (err, row) => {
+      (err: Error | null, row: DayResult | undefined) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (row) {
-          resolve(row)
         } else {
-          resolve(undefined)
+          resolve(row)
         }
       }
     )
   })
 }
 
-export function setResult(projectId, words, today) {
+// todo promise
+export function setResult(projectId: number, words: number, today: string) {
   db.get(
     `SELECT id FROM DayResult WHERE projectId = ? AND date = ?`,
     [projectId, today],
-    (err, row) => {
+    (err: Error | null, row: DayResult | undefined) => {
       if (err) {
         console.error('Error querying database:', err.message)
       } else if (row) {
@@ -242,7 +252,11 @@ export function setResult(projectId, words, today) {
   )
 }
 
-export function getStatistics(projectStart, projectEnd) {
+// todo type
+export function getStatistics(
+  projectStart: string,
+  projectEnd: string
+): Promise<object[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `
@@ -274,21 +288,20 @@ LEFT JOIN (
 WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
 `,
       [projectStart, projectEnd],
-      (err, rows) => {
+      (err: Error | null, rows: object[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (rows) {
-          resolve(rows)
         } else {
-          resolve([])
+          resolve(rows)
         }
       }
     )
   })
 }
 
-export function getTodayStatistics(resultDate) {
+// todo type
+export function getTodayStatistics(resultDate: string): Promise<object[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `
@@ -319,34 +332,14 @@ LEFT JOIN (
 WHERE dr1.date = ?
 `,
       [resultDate, resultDate],
-      (err, rows) => {
+      (err: Error | null, rows: object[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
-        } else if (rows) {
-          resolve(rows)
         } else {
-          resolve([])
+          resolve(rows)
         }
       }
     )
   })
-}
-
-module.exports = {
-  getUser,
-  addUser,
-  updateUser,
-  createProject,
-  renameProject,
-  hideProject,
-  getDayResults,
-  getProjects,
-  getProject,
-  setResult,
-  getPrevDayResult,
-  getCurrentWords,
-  getStatistics,
-  getTodayStatistics,
-  close,
 }

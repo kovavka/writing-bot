@@ -57,6 +57,11 @@ export async function projectStatistics(
     db.getProject(projectId),
   ])
 
+  if (project === undefined) {
+    return
+    // throw error?
+  }
+
   const data = []
   const today = getToday()
   const {
