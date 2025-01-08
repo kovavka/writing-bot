@@ -3,13 +3,14 @@ import {buttons, errors, texts} from "../copy/pero";
 import * as commands from "./commands";
 import {dateToString, getToday, getTodayString} from "../shared/utils";
 import {getRemainingDays} from "./utils";
-import db from './database'
+import * as db from './database'
 import {MARATHON_END_DATE} from "./variables";
 
 export type MessageType =
     | 'new_project'
     | 'change_name'
     | 'update_words'
+    | 'rename_project'
 
 export type TextSessionData = {
     type: MessageType
@@ -53,7 +54,7 @@ async function createProjectCommand(ctx: ContextWithSession, projectName: string
 
     const remainingDays = getRemainingDays(today, dateEnd)
 
-    const projectId = db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal)
+    const projectId = await db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal)
 
     const dailyGoal = Math.ceil(goal / remainingDays)
     await ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),

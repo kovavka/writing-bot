@@ -58,7 +58,7 @@ export async function projectStatistics(ctx: SimpleContext, projectId: number): 
         data[index] = words
     })
 
-    let prevRes = 0
+    let prevRes = wordsStart
     // we use daysPassed to render bars until current date
     for(let i = 0; i < daysPassed; i++) {
         if (data[i] !== undefined) {

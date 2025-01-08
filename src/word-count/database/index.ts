@@ -9,7 +9,7 @@ const db = new sqlite3.Database(path.join(__dirname, './word-count.db'), (err) =
     }
 });
 
-function close() {
+export function close() {
     db.close((err) => {
         if (err) {
             console.error('Error closing database:', err.message);
@@ -19,7 +19,7 @@ function close() {
     });
 }
 
-function getUser(id) {
+export function getUser(id) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT * FROM User WHERE id = ?`, [id], (err, row) => {
             if (err) {
@@ -34,7 +34,7 @@ function getUser(id) {
     });
 }
 
-function addUser(id, name) {
+export function addUser(id, name) {
     db.get(`SELECT id FROM User WHERE id = ?`, [id], (err, row) => {
         if (err) {
             console.error('Error querying database:', err.message);
@@ -45,7 +45,7 @@ function addUser(id, name) {
     });
 }
 
-function updateUser(id, name) {
+export function updateUser(id, name) {
     db.run(`UPDATE User SET name = ? WHERE id = ?`, [name, id], (err) => {
         if (err) {
             console.error('Error querying database:', err.message);
@@ -53,7 +53,7 @@ function updateUser(id, name) {
     });
 }
 
-function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) {
+export function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal): Promise<number> {
     return new Promise((resolve, reject) => {
         db.run(`INSERT INTO Project (userId, name, dateStart, dateEnd, wordsStart, wordsGoal) VALUES (?, ?, ?, ?, ?, ?)`, [userId, name, dateStart, dateEnd, wordsStart, wordsGoal], function(err) {
             if (err) {
@@ -65,7 +65,7 @@ function createProject(userId, name, dateStart, dateEnd, wordsStart, wordsGoal) 
     });
 }
 
-function renameProject(projectId, name) {
+export function renameProject(projectId, name) {
     return new Promise((resolve, reject) => {
         db.run(`UPDATE Project SET name = ? WHERE id = ?`, [name, projectId], function(err) {
             if (err) {
@@ -77,7 +77,7 @@ function renameProject(projectId, name) {
     });
 }
 
-function hideProject(projectId, date) {
+export function hideProject(projectId, date) {
     return new Promise((resolve, reject) => {
         db.run(`UPDATE Project SET hidden = 1, hiddenDate = ? WHERE id = ?`, [date, projectId], function(err) {
             if (err) {
@@ -90,7 +90,7 @@ function hideProject(projectId, date) {
 }
 
 
-function getDayResults(projectId) {
+export function getDayResults(projectId) {
     return new Promise((resolve, reject) => {
         db.all(`SELECT * FROM DayResult WHERE projectId = ?`, [projectId], (err, rows) => {
             if (err) {
@@ -105,7 +105,7 @@ function getDayResults(projectId) {
     });
 }
 
-function getProjects(userId) {
+export function getProjects(userId) {
     return new Promise((resolve, reject) => {
         db.all(`SELECT * FROM Project WHERE userId = ? AND hidden = 0`, [userId], (err, rows) => {
             if (err) {
@@ -120,7 +120,7 @@ function getProjects(userId) {
     });
 }
 
-function getProject(projectId) {
+export function getProject(projectId) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT * FROM Project WHERE id = ?`, [projectId], (err, row) => {
             if (err) {
@@ -135,7 +135,7 @@ function getProject(projectId) {
     });
 }
 
-function getCurrentWords(projectId) {
+export function getCurrentWords(projectId) {
     return new Promise((resolve, reject) => {
         db.get(`
 SELECT 
@@ -171,7 +171,7 @@ WHERE p.id = ?`, [projectId], (err, row) => {
     });
 }
 
-function getPrevDayResult(projectId, today) {
+export function getPrevDayResult(projectId, today) {
     return new Promise((resolve, reject) => {
         db.get(`SELECT * FROM DayResult WHERE projectId = ? AND date < ? ORDER BY id DESC LIMIT 1`, [projectId, today], (err, row) => {
             if (err) {
@@ -186,7 +186,7 @@ function getPrevDayResult(projectId, today) {
     });
 }
 
-function setResult(projectId, words, today) {
+export function setResult(projectId, words, today) {
     db.get(`SELECT id FROM DayResult WHERE projectId = ? AND date = ?`, [projectId, today], (err, row) => {
         if (err) {
             console.error('Error querying database:', err.message);
@@ -198,7 +198,7 @@ function setResult(projectId, words, today) {
     });
 }
 
-function getStatistics(projectStart, projectEnd) {
+export function getStatistics(projectStart, projectEnd) {
     return new Promise((resolve, reject) => {
         db.all(`
 SELECT 
@@ -240,7 +240,7 @@ WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
     });
 }
 
-function getTodayStatistics(resultDate) {
+export function getTodayStatistics(resultDate) {
     return new Promise((resolve, reject) => {
         db.all(`
 SELECT 

@@ -110,6 +110,7 @@ bot.command('statToday', (ctx) => {
 function startNewChain(ctx: ContextWithSession, type: MessageType): void {
     const {id: userId} = ctx.from
     ctx.session[userId] = <TextSessionData>{
+        ...ctx.session[userId] ?? {},
         type: type,
         stageIndex: 0
     }
@@ -128,7 +129,8 @@ bot.on('callback_query', async (ctx) => {
 
         const queryCommand = queryMap.find(x => command.startsWith(x.type))
         if (queryCommand !== undefined) {
-            await queryCommand.handler(sessionContext)
+            const params = command.length > queryCommand.type.length + 1 ? command.substring(queryCommand.type.length + 1).split('_') : []
+            await queryCommand.handler(sessionContext, ...params)
             if (queryCommand.chainCommand !== undefined) {
                 startNewChain(sessionContext, queryCommand.chainCommand)
             }
@@ -140,6 +142,7 @@ bot.on('callback_query', async (ctx) => {
     }  catch (err) {
         ctx.reply(errors.generic);
         sendErrorToAdmin(err)
+        ctx.answerCbQuery();
     }
 });
 
