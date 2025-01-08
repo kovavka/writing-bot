@@ -19,4 +19,6 @@ type MessageContext = Context<Update.MessageUpdate<Message.TextMessage>>
 type AllowedProps = 'from' | 'reply' | 'answerCbQuery' | 'replyWithPhoto'
 export type SimpleContext  = Pick<MessageContext, AllowedProps> & SessionData
 
-export type SessionContext = Pick<MessageContext, AllowedProps> & Required<SessionData>
+export type TextMessageContext  = SimpleContext & Pick<MessageContext, 'message'>
+
+export type ContextWithSession<T = SimpleContext> = T & Required<SessionData>

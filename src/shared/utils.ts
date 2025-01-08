@@ -1,21 +1,21 @@
 import moment, {Moment} from "moment-timezone";
 import {TIME_ZONE, DATE_FORMAT, ADMIN_ID} from "./variables"
-import {SessionContext, SimpleContext} from "./types";
+import {ContextWithSession, SimpleContext} from "./types";
 
 export function isAdmin(ctx: SimpleContext): boolean {
     const {id: userId} = ctx.from
     return userId.toString() === ADMIN_ID
 }
 
-export function initSession(ctx: SimpleContext): SessionContext {
+export function initSession<T extends SimpleContext>(ctx: T): ContextWithSession<T> {
     if (ctx.session == null) {
         ctx.session = {};
     }
 
-    return ctx as SessionContext
+    return ctx as ContextWithSession<T>
 }
 
-export function clearSession(ctx: SimpleContext): void {
+export function clearSession<T extends SimpleContext>(ctx: T): void {
     const {id: userId} = ctx.from
 
     if (ctx.session != null) {

@@ -12,13 +12,11 @@ import {buttons, errors, texts} from "../copy/pero";
 import {getRemainingDays} from "./utils";
 import {adminStatToday} from "./commands";
 import {queryMap} from "./queries";
-
+import {ContextWithSession, TextMessageContext} from "../shared/types";
+import {ChainCommand, textInputChain, TextSessionData} from "./chains";
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
-
-const MARATHON_END_STR = '2025-01-31'
-const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
 
 
 // todo type
@@ -235,47 +233,63 @@ bot.on('callback_query', async (ctx) => {
     }
 });
 
-function createProjectCommand(ctx, userId, projectName, wordsStart, goal) {
-    const today = getToday()
-    const dateEnd = MARATHON_END_DATE
+function isValidString(userInput: string): boolean {
+    return userInput != null && !(/('|--|;)/.test(userInput))
+}
 
-    const remainingDays = getRemainingDays(today, dateEnd)
+function isValidNumber(userInput: string): boolean {
+    return userInput.length > 0 && /^\d+$/.test(userInput) && !isNaN(Number(userInput))
+}
 
-    db.createProject(userId, projectName, getTodayString(), dateToString(dateEnd), wordsStart, goal).then(id => {
-        const dailyGoal = Math.ceil(goal / remainingDays)
-        ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),
-            {
-                parse_mode: 'Markdown',
-                reply_markup: {
-                    inline_keyboard: [
-                        [
-                            buttons.setToday(id),
-                            buttons.statistics(id),
-                        ],
-                    ],
-                },
-            });
-    }).catch(err => {
-        sendErrorToAdmin(err)
-        ctx.reply(errors.generic);
-    })
+async function executeChainCommand(chainCommand: ChainCommand, ctx: ContextWithSession<TextMessageContext>, sessionData: TextSessionData) {
+    const userInput = ctx.message.text;
+
+    const currentStage = chainCommand.stages.find(x => x.name === sessionData.stage)
+    if (currentStage !== undefined) {
+        if (currentStage.inputType === 'number')  {
+            if (!isValidNumber(userInput)) {
+                await ctx.reply(errors.numberInvalid);
+                return
+            }
+
+            const value = Number(userInput)
+            await currentStage.handler(ctx, sessionData, value)
+        } else {
+            if (!isValidString(userInput)) {
+                await ctx.reply(errors.nameInvalid);
+                return
+            }
+
+            await currentStage.handler(ctx, sessionData, userInput)
+        }
+
+        if (currentStage.nextStage !== undefined) {
+            sessionData.stage = currentStage.nextStage
+        } else {
+            // no next stage, command is finished
+            clearSession(ctx)
+        }
+    }
 }
 
 bot.on('text', (ctx) => {
     try {
         const {id: userId} = ctx.from
-        const userInput = ctx.message.text;
 
-        initSession(ctx)
+        const sessionContext = initSession(ctx)
 
-        const sessionData = ctx.session[userId]
+        const sessionData = sessionContext.session[userId] as TextSessionData
 
         if (sessionData == null) {
             ctx.reply(errors.unknown);
             return
         }
 
-        if (sessionData.type === 'new_project') {
+        const chainCommand = textInputChain.find(x => x.type === sessionData.type)
+        if (chainCommand !== undefined) {
+            executeChainCommand(chainCommand, sessionContext as ChainContext, sessionData)
+
+        } else if (sessionData.type === 'new_project') {
             if (sessionData.stage === 'name') {
                 // todo check input by inputType
                 ctx.reply(texts.setStart);

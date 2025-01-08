@@ -7,9 +7,7 @@ import moment, {Moment} from "moment-timezone";
 import {getRemainingDays} from "./utils";
 import { getChart } from './chart'
 import db from './database'
-
-const MARATHON_END_STR = '2025-01-31'
-const MARATHON_END_DATE = moment(MARATHON_END_STR, DATE_FORMAT)
+import {MARATHON_END_STR} from "./variables";
 
 export async function status(ctx: SimpleContext): Promise<void> {
     const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')

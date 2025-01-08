@@ -1,38 +1,23 @@
 // todo
-import {SessionContext, SimpleContext} from "../shared/types";
+import {ContextWithSession, SimpleContext} from "../shared/types";
 import {texts} from "../copy/pero";
 import * as commands from "./commands";
+import {TextSessionData} from "./chains";
 
 export type QueryType = 'new_project' | 'all_projects' | 'change_name'
 
-export type MessageType = 'new_project' | 'change_name'
-
-
-export type SessionData =  {
-    type: MessageType
-    inputType: 'number' | 'string'
-    stage: string
-}
-
-
-export type NewProjectData = SessionData & {
-    type: 'new_project'
-    stage: 'name' | 'wordsStart' | 'wordsGoal'
-    projectName?: string
-}
-
-export async function newProjectQuery(ctx: SessionContext): Promise<void> {
+export async function newProjectQuery(ctx: ContextWithSession): Promise<void> {
     const {id: userId} = ctx.from
-    ctx.session[userId] = <NewProjectData>{
+    // todo get data from the corresponding chain
+    ctx.session[userId] = <TextSessionData>{
         type: 'new_project',
-        inputType: 'string',
         stage: 'name'
     }
 
     await ctx.reply(texts.setName);
 }
 
-export const queryMap: {[key in QueryType]: (ctx: SessionContext) => Promise<void>} = {
+export const queryMap: {[key in QueryType]: (ctx: ContextWithSession) => Promise<void>} = {
     'new_project': newProjectQuery,
     'all_projects': commands.allProjects,
 }
