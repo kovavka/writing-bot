@@ -13,7 +13,7 @@ import {getRemainingDays} from "./utils";
 import {adminStatToday} from "./commands";
 import {queryMap} from "./queries";
 import {ContextWithSession, TextMessageContext} from "../shared/types";
-import {ChainCommand, textInputChain, TextSessionData} from "./chains";
+import {TextCommand, MessageType, BaseTextCommand, textInputCommands, TextSessionData} from "./text-commands";
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO);
 bot.use(session());
@@ -241,38 +241,38 @@ function isValidNumber(userInput: string): boolean {
     return userInput.length > 0 && /^\d+$/.test(userInput) && !isNaN(Number(userInput))
 }
 
-async function executeChainCommand(chainCommand: ChainCommand, ctx: ContextWithSession<TextMessageContext>, sessionData: TextSessionData) {
+async function executeChainCommand(command: TextCommand, ctx: ContextWithSession<TextMessageContext>, sessionData: TextSessionData) {
     const userInput = ctx.message.text;
 
-    const currentStage = chainCommand.stages.find(x => x.name === sessionData.stage)
-    if (currentStage !== undefined) {
-        if (currentStage.inputType === 'number')  {
-            if (!isValidNumber(userInput)) {
-                await ctx.reply(errors.numberInvalid);
-                return
-            }
-
-            const value = Number(userInput)
-            await currentStage.handler(ctx, sessionData, value)
-        } else {
-            if (!isValidString(userInput)) {
-                await ctx.reply(errors.nameInvalid);
-                return
-            }
-
-            await currentStage.handler(ctx, sessionData, userInput)
+    if (command.inputType === 'number')  {
+        if (!isValidNumber(userInput)) {
+            await ctx.reply(errors.numberInvalid);
+            return
         }
 
-        if (currentStage.nextStage !== undefined) {
-            sessionData.stage = currentStage.nextStage
-        } else {
-            // no next stage, command is finished
-            clearSession(ctx)
+        const value = Number(userInput)
+        await command.handler(ctx, value, sessionData)
+    } else {
+        if (!isValidString(userInput)) {
+            await ctx.reply(errors.nameInvalid);
+            return
         }
+
+        await command.handler(ctx, userInput, sessionData)
+    }
+
+    if (command.next !== undefined) {
+        sessionData.type = command.next
+    } else {
+        clearSession(ctx)
     }
 }
 
-bot.on('text', (ctx) => {
+// function getTextCommand<T>(type: MessageType) {
+//     textInputCommands.find(x => x.type === sessionData.type)
+// }
+
+bot.on('text', async (ctx) => {
     try {
         const {id: userId} = ctx.from
 
@@ -281,170 +281,14 @@ bot.on('text', (ctx) => {
         const sessionData = sessionContext.session[userId] as TextSessionData
 
         if (sessionData == null) {
-            ctx.reply(errors.unknown);
+            await ctx.reply(errors.unknown);
             return
         }
 
-        const chainCommand = textInputChain.find(x => x.type === sessionData.type)
-        if (chainCommand !== undefined) {
-            executeChainCommand(chainCommand, sessionContext as ChainContext, sessionData)
+        const textCommand = textInputCommands.find(x => x.type === sessionData.type)
+        if (textCommand !== undefined) {
+            await executeChainCommand(textCommand, sessionContext, sessionData)
 
-        } else if (sessionData.type === 'new_project') {
-            if (sessionData.stage === 'name') {
-                // todo check input by inputType
-                ctx.reply(texts.setStart);
-                // todo create chain of commands
-                sessionData.stage = 'wordsStart'
-                sessionData.inputType = 'number'
-                sessionData.projectName = userInput
-            } else if (sessionData.stage === 'wordsStart') {
-                const start = parseInt(userInput);
-                // todo check input by inputType
-
-                const {projectName} = sessionData
-                //todo remove after enabling custom goal
-                createProjectCommand(ctx, userId, projectName, start, 50000)
-
-                clearSession(ctx)
-            } else {
-                // todo error
-            }
-        } else if (sessionData.waitingForProjectName) {
-            if (userInput != null && !(/('|--|;)/.test(userInput))) {
-                ctx.reply(texts.setStart);
-
-                sessionData.waitingForProjectName = false;
-                sessionData.projectName = userInput
-                sessionData.waitingForWordsStart = true;
-            } else {
-                ctx.reply(errors.nameInvalid);
-            }
-        } else if (sessionData.waitingForProjectNewName) {
-            if (userInput != null && !(/('|--|;)/.test(userInput))) {
-                const {projectId} = sessionData
-
-               db.renameProject(projectId, userInput)
-                   .then(() => {
-                       ctx.reply(texts.projectRenamed, {
-                           reply_markup: {
-                               inline_keyboard: [
-                                   [
-                                       buttons.editProject(projectId)
-                                   ],
-                                   [
-                                       buttons.setToday(projectId),
-                                       buttons.statistics(projectId),
-                                   ],
-                               ],
-                           },
-                       });
-                   }).catch((err) => {
-                       ctx.reply(errors.generic);
-                       sendErrorToAdmin(err)
-                   })
-
-                sessionData.waitingForProjectNewName = false;
-            } else {
-                ctx.reply(errors.nameInvalid);
-            }
-        } else if (sessionData.waitingForWordsStart) {
-            const start = parseInt(userInput);
-            if (!isNaN(start)) {
-                const {projectName} = sessionData
-                //todo remove after enabling custom goal
-                createProjectCommand(ctx, userId, projectName, start, 50000)
-
-                sessionData.waitingForWordsStart = false;
-
-                // ctx.reply(texts.setGoal);
-                // sessionData.wordsStart = start
-                // sessionData.waitingForWordsGoal = true;
-            } else {
-                ctx.reply(errors.numberInvalid);
-            }
-        // } else if (sessionData.waitingForWordsGoal) {
-        //     const goal = parseInt(userInput);
-        //     if (!isNaN(goal) && goal > 0) {
-        //
-        //         const {projectName, wordsStart} = sessionData
-        //
-        //         createProjectCommand(ctx, userId, projectName, wordsStart, goal)
-        //
-        //         sessionData.waitingForWordsGoal = false;
-        //     } else {
-        //         ctx.reply(errors.numberInvalid);
-        //     }
-        } else if (sessionData.waitingForCurrentWords && sessionData.projectId != null) {
-            const {projectId} = sessionData
-            const currentWords = parseInt(userInput);
-            if (!isNaN(currentWords)) {
-                const todayStr = getTodayString()
-                Promise.all([db.getProject(projectId), db.getPrevDayResult(projectId, todayStr)]).then(([project, result]) => {
-                    const prevWords = result != null ? result.words : project.wordsStart
-                    const wordsDiff = currentWords - prevWords
-
-                    db.setResult(projectId, currentWords, todayStr)
-
-                    const goalAchieved = currentWords >= project.wordsStart + project.wordsGoal
-                    ctx.reply(goalAchieved ? texts.todayAchieved : wordsDiff >= 0 ? texts.todaySaved(wordsDiff) : texts.todaySavedNegative(wordsDiff), {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    buttons.setToday(projectId),
-                                    buttons.statistics(projectId),
-                                ],
-                            ],
-                        },
-                    });
-                }).catch((err) => {
-                    ctx.reply(errors.generic);
-                    sendErrorToAdmin(err)
-                 })
-
-
-                sessionData.waitingForCurrentWords = false;
-            } else {
-                ctx.reply(errors.numberInvalid);
-            }
-        } else if (sessionData.waitingForUserName) {
-            if (userInput != null && !(/('|--|;)/.test(userInput))) {
-                db.updateUser(userId, userInput)
-
-                ctx.reply(texts.userNameSet, {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                buttons.newProject
-                            ]
-                        ]
-                    },
-                });
-
-                sessionData.waitingForUserName = false;
-            } else {
-                ctx.reply(errors.nameInvalid);
-            }
-        } else if (sessionData.waitingForNewUserName) {
-            if (userInput != null && !(/('|--|;)/.test(userInput))) {
-                db.updateUser(userId, userInput)
-
-                ctx.reply(texts.userNameUpdated , {
-                    reply_markup: {
-                        inline_keyboard: [
-                            [
-                                buttons.newProject,
-                                buttons.allProjects
-                            ]
-                        ]
-                    },
-                });
-
-                sessionData.waitingForNewUserName = false;
-            } else {
-                ctx.reply(errors.nameInvalid);
-            }
-        } else {
-            ctx.reply(errors.unknown);
         }
     }  catch (err) {
         ctx.reply(errors.generic);

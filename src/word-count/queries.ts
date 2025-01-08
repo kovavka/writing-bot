@@ -2,7 +2,7 @@
 import {ContextWithSession, SimpleContext} from "../shared/types";
 import {texts} from "../copy/pero";
 import * as commands from "./commands";
-import {TextSessionData} from "./chains";
+import {TextSessionData} from "./text-commands";
 
 export type QueryType = 'new_project' | 'all_projects' | 'change_name'
 
