@@ -3,9 +3,21 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "lint-staged": {
+    "**/*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,css,scss,md}": [
+      "prettier --write"
+    ]
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:update": "node ./data-base/mirgate.js"
+    "db:update": "node src/word-count/database/mirgate.js",
+    "build": "npx tsx",
+    "run:dev": "node --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts",
+    "prepare": "husky"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +28,19 @@
     "node-telegram-bot-api": "^0.66.0",
     "quickchart-js": "^3.1.3",
     "sqlite3": "^5.1.7",
-    "telegraf": "^4.16.3"
+    "telegraf": "^4.16.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.5",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.3.0",
+    "prettier": "3.4.2",
+    "typescript-eslint": "^8.19.1"
   }
 }

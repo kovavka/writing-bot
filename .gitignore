@@ -4,8 +4,10 @@ node_modules
 .idea/
 .vscode/
 
-data-base/*.db
 .env
-
 app.log
 backups
+
+src/**/*.db
+
+temp.js
