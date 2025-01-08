@@ -7,14 +7,13 @@ import db from './database'
 import {MARATHON_END_DATE} from "./variables";
 
 export type MessageType =
-    | 'new_project_name'
-    | 'new_project_words_start'
-    | 'new_project_words_goal'
+    | 'new_project'
     | 'change_name'
     | 'update_words'
 
 export type TextSessionData = {
     type: MessageType
+    stageIndex: number
 }
 
 export type NewProjectData = TextSessionData & {
@@ -26,17 +25,20 @@ export type SimpleProjectData = TextSessionData & {
     projectId?: number
 }
 
-export type BaseTextCommand<T = TextSessionData> = {
-    type: MessageType,
-    next?: MessageType,
-} & ({
-    inputType: 'number',
-    handler: (ctx: ContextWithSession<TextMessageContext>, userInput: number, sessionData: T) => Promise<void>
-    }|
-    {
+type ChainStage<T> =
+    | {
+        inputType: 'number',
+        handler: (ctx: ContextWithSession<TextMessageContext>, userInput: number, sessionData: T) => Promise<void>
+      }
+    | {
         inputType: 'string',
         handler: (ctx: ContextWithSession<TextMessageContext>, userInput: string, sessionData: T) => Promise<void>
-    })
+      }
+
+export type TextChainCommand<T> = {
+    type: MessageType,
+    stages: ChainStage<T>[]
+}
 
 async function projectNameHandler(ctx: ContextWithSession, userInput: string, sessionData: NewProjectData): Promise<void> {
     await ctx.reply(texts.setStart);
@@ -105,24 +107,31 @@ async function currentWordsHandler(ctx: ContextWithSession, currentWords: number
 
 }
 
+export type AnySessionData = NewProjectData | SimpleProjectData | TextSessionData
 
-export type TextCommand = BaseTextCommand<NewProjectData> | BaseTextCommand<SimpleProjectData> | BaseTextCommand
-
-export const textInputCommands: TextCommand[] = [
+export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     {
-        type: 'new_project_name',
-        inputType: 'string',
-        next: 'new_project_words_start',
-        handler: projectNameHandler
-    },
-    {
-        type: 'new_project_words_start',
-        inputType: 'number',
-        handler: wordsStartHandler
+        type: 'new_project',
+        stages: [
+            {
+                // project name
+                inputType: 'string',
+                handler: projectNameHandler
+            },
+            {
+                // words start
+                inputType: 'number',
+                handler: wordsStartHandler
+            },
+        ]
     },
     {
         type: 'update_words',
-        inputType: "number",
-        handler: currentWordsHandler
+        stages: [
+            {
+                inputType: "number",
+                handler: currentWordsHandler
+            }
+        ]
     },
 ]
