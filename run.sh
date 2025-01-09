@@ -1,6 +1,6 @@
 #!/bin/bash
 while true; do
-    node bot.js
+    npx tsx src/index.ts
     if [ $? -ne 0 ]; then
         echo "Application crashed. Restarting in 5 seconds..."
         sleep 5
