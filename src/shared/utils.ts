@@ -34,6 +34,10 @@ export function dateToString(date = getToday()): string {
   return date.tz(TIME_ZONE).format(DATE_FORMAT)
 }
 
+export function stringToDate(dateStr: string): Moment {
+  return moment(dateStr, DATE_FORMAT).tz(TIME_ZONE)
+}
+
 export function getTodayString(): string {
-  return dateToString(moment())
+  return dateToString(moment().tz(TIME_ZONE))
 }

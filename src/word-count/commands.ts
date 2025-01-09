@@ -1,4 +1,10 @@
-import { clearSession, getToday, initSession, isAdmin } from '../shared/utils'
+import {
+  clearSession,
+  getToday,
+  initSession,
+  isAdmin,
+  stringToDate,
+} from '../shared/utils'
 import { DATE_FORMAT, TIME_ZONE } from '../shared/variables'
 import { ContextWithSession, SimpleContext } from '../shared/types'
 import { buttons, errors, texts } from '../copy/pero'
@@ -71,14 +77,14 @@ export async function projectStatistics(
     wordsGoal,
   } = project
 
-  const dateStart = moment(dateStartStr, DATE_FORMAT)
-  const dateEnd = moment(dateEndStr, DATE_FORMAT)
+  const dateStart = stringToDate(dateStartStr)
+  const dateEnd = stringToDate(dateEndStr)
   const projectLength = getRemainingDays(dateStart, dateEnd)
   const remainingDays = getRemainingDays(today, dateEnd)
   const daysPassed = getRemainingDays(dateStart, today)
 
   rows.forEach(({ date, words }) => {
-    const rowDate = moment(date, DATE_FORMAT)
+    const rowDate = stringToDate(date)
     const index = getRemainingDays(dateStart, rowDate) - 1
     data[index] = words
   })
@@ -165,7 +171,7 @@ export async function adminStatToday(ctx: SimpleContext): Promise<void> {
       }
     })
 
-    const data = Object.entries(resultByUser).map(([userId, result]) => {
+    const data = Object.entries(resultByUser).map(([, result]) => {
       const { userName, wordsDiff } = result
 
       return { userName, wordsDiff }
@@ -204,7 +210,7 @@ export async function adminStat(ctx: SimpleContext): Promise<void> {
     })
 
     const data = Object.entries(resultByUser)
-      .map(([userId, result]) => {
+      .map(([, result]) => {
         if (result.length === 0) {
           return ''
         }
