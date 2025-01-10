@@ -34,7 +34,7 @@ export const texts = {
   todaySaved: (wordsDiff: number) =>
     `Вот это да, какая талантливая ведьмочка мне попалась! Сегодня ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}. Заклинание все крепче, у нас все получается!`,
   todaySavedNegative: (wordsDiff: number) =>
-    `Какая усердная ведьмочка мне попалась, всё редактирует и редактирует! Сегодня ты вычеркнула ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, forms.words)}.`,
+    `Какая усердная ведьмочка, всё редактирует и редактирует! Сегодня ты *удалила* ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, forms.words)}.`,
   todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
   statistics: (daysLeft: number, wordsLeft: number) =>
     `Впереди еще ${daysLeft} ${getWordForm(daysLeft, forms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, forms.words)}. Я верю в тебя, моя ведьмочка!`,

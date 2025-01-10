@@ -161,6 +161,7 @@ async function currentWordsHandler(
         ? texts.todaySaved(wordsDiff)
         : texts.todaySavedNegative(wordsDiff),
     {
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [buttons.setToday(projectId), buttons.statistics(projectId)],
