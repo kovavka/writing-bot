@@ -1,38 +1,26 @@
-/** @type {import('eslint').Linter.Config} */
-export default {
-  // parser: '@typescript-eslint/parser',
-  // parserOptions: {
-  //   ecmaVersion: 2020,
-  //   sourceType: 'module',
-  //   ecmaFeatures: {
-  //     jsx: true,
-  //   },
-  // },
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended',
-    'plugin:prettier/recommended',
-  ],
-  plugins: ['@typescript-eslint', 'prettier'],
-  rules: {
-    // General
-    'no-console': 'warn',
-    'no-unused-vars': 'off', // Turned off in favor of @typescript-eslint/no-unused-vars
-    '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
+import globals from 'globals'
+import pluginJs from '@eslint/js'
+import tseslint from 'typescript-eslint'
+import eslintConfigPrettier from 'eslint-config-prettier'
 
-    // TypeScript-specific
-    '@typescript-eslint/explicit-function-return-type': 'error',
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/consistent-type-imports': 'warn',
-
-    // Prettier integration
-    'prettier/prettier': [
-      'error',
-      {
-        singleQuote: true,
-        semi: true,
-        trailingComma: 'all',
-      },
-    ],
+/** @type {import('eslint').Linter.Config[]} */
+export default [
+  { files: ['**/*.{js,mjs,cjs,ts}'] },
+  { languageOptions: { globals: globals.browser } },
+  pluginJs.configs.recommended,
+  ...tseslint.configs.recommended,
+  eslintConfigPrettier,
+  {
+    rules: {
+      '@typescript-eslint/explicit-module-boundary-types': ['error'],
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+        },
+      ],
+    },
   },
-}
+]
