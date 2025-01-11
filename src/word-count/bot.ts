@@ -3,18 +3,24 @@ import { callbackQuery } from 'telegraf/filters'
 import * as db from './database'
 import { TELEGRAM_BOT_TOKEN_PERO, ADMIN_ID } from '../shared/variables'
 import { initSession, clearSession } from '../shared/utils'
-import * as commands from './commands'
-import { buttons, errors, texts } from '../copy/pero'
-import { queryMap } from './queries'
+import * as commands from './actions/commands'
+import { texts } from './copy/texts'
+import { queryMap } from './actions/queries'
 import { ContextWithSession, TextMessageContext } from '../shared/types'
-import { TextChainCommand, textInputCommands, AnySessionData } from './chains'
-import { startNewChain } from './commands'
+import {
+  TextChainCommand,
+  textInputCommands,
+  AnySessionData,
+} from './actions/chains'
+import { startNewChain } from './actions/commands'
+import { buttons } from './copy/buttons'
+import { errors } from './copy/errors'
 
 export const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO)
 bot.use(session())
 
 // todo type
-function sendErrorToAdmin(err: any) {
+function sendErrorToAdmin(err: unknown): void {
   bot.telegram
     .sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
     .catch(() => {})
@@ -136,13 +142,12 @@ async function executeChainCommand(
   command: TextChainCommand<AnySessionData>,
   ctx: ContextWithSession<TextMessageContext>,
   sessionData: AnySessionData
-) {
+): Promise<void> {
   const userInput = ctx.message.text
 
   const currentStage = command.stages[sessionData.stageIndex]
   if (currentStage === undefined) {
-    ctx.reply(errors.generic)
-    return
+    return Promise.reject()
   }
 
   if (currentStage.inputType === 'number') {

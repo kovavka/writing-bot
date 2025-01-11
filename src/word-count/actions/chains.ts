@@ -1,10 +1,11 @@
-import { ContextWithSession, TextMessageContext } from '../shared/types'
-import { buttons, texts } from '../copy/pero'
-import { dateToString, getToday, getTodayString } from '../shared/utils'
+import { ContextWithSession, TextMessageContext } from '../../shared/types'
+import { texts } from '../copy/texts'
+import { dateToString, getToday, getTodayString } from '../../shared/utils'
 import { getRemainingDays } from './utils'
-import * as db from './database'
-import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from './variables'
-import { MessageType } from './types'
+import * as db from '../database'
+import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from '../variables'
+import { MessageType } from '../types'
+import { buttons } from '../copy/buttons'
 
 export type TextSessionData = {
   type: MessageType
@@ -236,7 +237,7 @@ export type AnySessionData =
 
 export const textInputCommands: TextChainCommand<AnySessionData>[] = [
   {
-    type: 'new_project',
+    type: MessageType.NewProject,
     stages: [
       {
         // project name
@@ -251,7 +252,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'edit_goal',
+    type: MessageType.EditGoal,
     stages: [
       {
         inputType: 'number',
@@ -260,7 +261,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'rename_project',
+    type: MessageType.RenameProject,
     stages: [
       {
         inputType: 'string',
@@ -269,7 +270,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'update_words',
+    type: MessageType.UpdateWords,
     stages: [
       {
         inputType: 'number',
@@ -278,7 +279,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'set_name',
+    type: MessageType.SetName,
     stages: [
       {
         inputType: 'string',
@@ -287,7 +288,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'change_name',
+    type: MessageType.ChangeName,
     stages: [
       {
         inputType: 'string',

@@ -1,4 +1,4 @@
-import { getWordForm } from '../utils'
+import { getWordForm } from '../get-word-form'
 
 const forms = ['1', '2', '3'] as const
 

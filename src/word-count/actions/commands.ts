@@ -4,17 +4,19 @@ import {
   initSession,
   isAdmin,
   stringToDate,
-} from '../shared/utils'
-import { DATE_FORMAT, TIME_ZONE } from '../shared/variables'
-import { ContextWithSession, SimpleContext } from '../shared/types'
-import { buttons, errors, texts } from '../copy/pero'
+} from '../../shared/utils'
+import { DATE_FORMAT, TIME_ZONE } from '../../shared/variables'
+import { ContextWithSession, SimpleContext } from '../../shared/types'
+import { texts } from '../copy/texts'
 import moment from 'moment-timezone'
 import { getRemainingDays } from './utils'
 import { getChart } from './chart'
-import * as db from './database'
-import { MARATHON_END_STR } from './variables'
+import * as db from '../database'
+import { MARATHON_END_STR } from '../variables'
 import { TextSessionData } from './chains'
-import { MessageType } from './types'
+import { MessageType, QueryType } from '../types'
+import { buttons } from '../copy/buttons'
+import { errors } from '../copy/errors'
 
 export async function status(ctx: SimpleContext): Promise<void> {
   const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -44,7 +46,7 @@ export async function start(ctx: SimpleContext): Promise<void> {
   if (user == null) {
     await db.addUser(userId, `${first_name} ${last_name}`)
 
-    startNewChain(sessionContext, 'set_name')
+    startNewChain(sessionContext, MessageType.SetName)
     await ctx.reply(texts.welcome)
   } else {
     await ctx.reply(texts.welcomeBack(user.name), {
@@ -137,7 +139,7 @@ export async function allProjects(ctx: SimpleContext): Promise<void> {
     await ctx.reply(texts.allProjects, {
       reply_markup: {
         inline_keyboard: rows.map(row => [
-          { text: row.name, callback_data: `project_${row.id}` },
+          { text: row.name, callback_data: `${QueryType.Project}_${row.id}` },
         ]),
       },
     })

@@ -5,7 +5,7 @@ export function getChart(
   data: number[],
   wordsStart: number,
   wordsEnd: number
-) {
+): Promise<Buffer> {
   const chart = new QuickChart()
 
   const expectedData = []

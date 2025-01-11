@@ -1,10 +1,11 @@
-import { ContextWithSession } from '../shared/types'
-import { buttons, texts } from '../copy/pero'
+import { ContextWithSession } from '../../shared/types'
+import { texts } from '../copy/texts'
 import * as commands from './commands'
 import { SimpleProjectData, TextSessionData } from './chains'
-import * as db from './database'
-import { getTodayString } from '../shared/utils'
-import { MessageType, QueryType } from './types'
+import * as db from '../database'
+import { getTodayString } from '../../shared/utils'
+import { MessageType, QueryType } from '../types'
+import { buttons } from '../copy/buttons'
 
 type QueryCommand = {
   type: QueryType
@@ -12,7 +13,7 @@ type QueryCommand = {
   chainCommand?: MessageType
 }
 
-function saveProjectId(ctx: ContextWithSession, projectId: number) {
+function saveProjectId(ctx: ContextWithSession, projectId: number): void {
   const { id: userId } = ctx.from
   ctx.session[userId] = <Omit<SimpleProjectData, keyof TextSessionData>>{
     projectId,
@@ -43,6 +44,10 @@ async function getProjectHandler(
 ): Promise<void> {
   const projectId = Number(projectIdStr)
   const project = await db.getProject(projectId)
+  if (project === undefined) {
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
+  }
+
   await ctx.reply(texts.selectProject(project.name), {
     parse_mode: 'Markdown',
     reply_markup: {
@@ -112,52 +117,52 @@ async function projectStatHandler(
 
 export const queryMap: QueryCommand[] = [
   {
-    type: 'new_project',
-    handler: async (ctx: ContextWithSession) => {
+    type: QueryType.NewProject,
+    handler: async (ctx: ContextWithSession): Promise<void> => {
       await ctx.reply(texts.setName)
     },
-    chainCommand: 'new_project',
+    chainCommand: MessageType.NewProject,
   },
   {
-    type: 'project',
+    type: QueryType.Project,
     handler: getProjectHandler,
   },
   {
-    type: 'edit_project',
+    type: QueryType.EditProject,
     handler: editProjectHandler,
   },
   {
-    type: 'edit_goal',
+    type: QueryType.EditGoal,
     handler: editProjectGoalHandler,
-    chainCommand: 'edit_goal',
+    chainCommand: MessageType.EditGoal,
   },
   {
-    type: 'rename_project',
+    type: QueryType.RenameProject,
     handler: renameProjectHandler,
-    chainCommand: 'rename_project',
+    chainCommand: MessageType.RenameProject,
   },
   {
-    type: 'remove_project',
+    type: QueryType.RemoveProject,
     handler: removeProjectHandler,
   },
   {
-    type: 'update_project',
+    type: QueryType.UpdateProject,
     handler: updateProjectHandler,
-    chainCommand: 'update_words',
+    chainCommand: MessageType.UpdateWords,
   },
   {
-    type: 'stat_project',
+    type: QueryType.StatProject,
     handler: projectStatHandler,
   },
   {
-    type: 'all_projects',
+    type: QueryType.AllProjects,
     handler: commands.allProjects,
   },
   {
-    type: 'change_name',
-    handler: async (ctx: ContextWithSession) => {
+    type: QueryType.ChangeName,
+    handler: async (ctx: ContextWithSession): Promise<void> => {
       await ctx.reply(texts.changeName)
     },
-    chainCommand: 'change_name',
+    chainCommand: MessageType.ChangeName,
   },
 ]
