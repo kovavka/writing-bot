@@ -11,10 +11,15 @@ export function startNewChain<T extends string>(ctx: ContextWithSession, type: T
 }
 
 export function isValidString(userInput: string): boolean {
-  return userInput != null && !/('|--|;)/.test(userInput)
+  return userInput.length > 0 && !/('|--|;)/.test(userInput)
 }
 
 // todo check max value
 export function isValidNumber(userInput: string): boolean {
-  return userInput.length > 0 && /^\d+$/.test(userInput) && !isNaN(Number(userInput))
+  return (
+    userInput.length > 0 &&
+    userInput.length < 9 &&
+    /^\d+$/.test(userInput) &&
+    !isNaN(Number(userInput))
+  )
 }

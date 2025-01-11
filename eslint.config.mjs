@@ -12,7 +12,7 @@ export default [
   eslintConfigPrettier,
   {
     rules: {
-      '@typescript-eslint/explicit-module-boundary-types': ['error'],
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
       '@typescript-eslint/explicit-function-return-type': [
         'error',
         {
@@ -21,6 +21,12 @@ export default [
           allowHigherOrderFunctions: true,
         },
       ],
+    },
+  },
+  {
+    files: ['**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
 ]
