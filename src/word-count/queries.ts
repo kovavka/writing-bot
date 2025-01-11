@@ -1,20 +1,10 @@
 import { ContextWithSession } from '../shared/types'
 import { buttons, texts } from '../copy/pero'
 import * as commands from './commands'
-import { MessageType, SimpleProjectData, TextSessionData } from './chains'
+import { SimpleProjectData, TextSessionData } from './chains'
 import * as db from './database'
 import { getTodayString } from '../shared/utils'
-
-export type QueryType =
-  | 'new_project'
-  | 'project'
-  | 'edit_project'
-  | 'rename_project'
-  | 'remove_project'
-  | 'update_project'
-  | 'stat_project'
-  | 'all_projects'
-  | 'change_name'
+import { MessageType, QueryType } from './types'
 
 type QueryCommand = {
   type: QueryType
@@ -37,6 +27,11 @@ async function updateProjectHandler(
   saveProjectId(ctx, projectId)
 
   const row = await db.getCurrentWords(projectId)
+  if (row === undefined) {
+    return Promise.reject(
+      `Couldn't find latest words, projectId = ${projectId}`
+    )
+  }
   const prevWords = row.latestWords ?? row.wordsStart
 
   await ctx.reply(texts.setToday(prevWords))
@@ -67,10 +62,20 @@ async function editProjectHandler(
   await ctx.reply(texts.editProject, {
     reply_markup: {
       inline_keyboard: [
+        [buttons.editGoal(projectId)],
         [buttons.renameProject(projectId), buttons.removeProject(projectId)],
       ],
     },
   })
+}
+
+async function editProjectGoalHandler(
+  ctx: ContextWithSession,
+  projectIdStr: string
+): Promise<void> {
+  const projectId = Number(projectIdStr)
+  saveProjectId(ctx, projectId)
+  await ctx.reply(texts.editGoal)
 }
 
 async function renameProjectHandler(
@@ -120,6 +125,11 @@ export const queryMap: QueryCommand[] = [
   {
     type: 'edit_project',
     handler: editProjectHandler,
+  },
+  {
+    type: 'edit_goal',
+    handler: editProjectGoalHandler,
+    chainCommand: 'edit_goal',
   },
   {
     type: 'rename_project',

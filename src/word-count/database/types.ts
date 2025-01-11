@@ -21,3 +21,12 @@ export type DayResult = {
   date: string
   words: number
 }
+
+export type ProjectCurrentWords = {
+  id: number
+  name: string
+  wordsStart: number
+  wordsGoal: number
+  latestDate: string
+  latestWords: number
+}

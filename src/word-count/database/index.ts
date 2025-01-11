@@ -1,4 +1,4 @@
-import { DayResult, Project, User } from './types'
+import { DayResult, Project, ProjectCurrentWords, User } from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
 
@@ -30,7 +30,6 @@ export function getUser(id: number): Promise<User | undefined> {
       [id],
       (err: Error | null, row: User | undefined) => {
         if (err) {
-          console.error('Error querying database:', err.message)
           reject(err)
         } else {
           resolve(row)
@@ -40,29 +39,48 @@ export function getUser(id: number): Promise<User | undefined> {
   })
 }
 
-// todo add promise
-export function addUser(id: number, name: string) {
-  db.get(`SELECT id FROM User WHERE id = ?`, [id], (err: Error | null, row) => {
-    if (err) {
-      console.error('Error querying database:', err.message)
-    } else if (row) {
-    } else {
-      db.run(`INSERT INTO User (id, name) VALUES (?, ?)`, [id, name])
-    }
+export function addUser(id: number, name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT id FROM User WHERE id = ?`,
+      [id],
+      (err: Error | null, row: User | undefined) => {
+        if (err) {
+          reject(err)
+        } else if (row === undefined) {
+          resolve()
+        } else {
+          db.run(
+            `INSERT INTO User (id, name) VALUES (?, ?)`,
+            [id, name],
+            (err: Error | null) => {
+              if (err) {
+                reject(err)
+              } else {
+                resolve()
+              }
+            }
+          )
+        }
+      }
+    )
   })
 }
 
-// todo add promise
-export function updateUser(id: number, name: string) {
-  db.run(
-    `UPDATE User SET name = ? WHERE id = ?`,
-    [name, id],
-    (err: Error | null) => {
-      if (err) {
-        console.error('Error querying database:', err.message)
+export function updateUser(id: number, name: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE User SET name = ? WHERE id = ?`,
+      [name, id],
+      (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
       }
-    }
-  )
+    )
+  })
 }
 
 export function createProject(
@@ -93,6 +111,25 @@ export function renameProject(projectId: number, name: string): Promise<void> {
     db.run(
       `UPDATE Project SET name = ? WHERE id = ?`,
       [name, projectId],
+      function (err: Error | null) {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+      }
+    )
+  })
+}
+
+export function updateProjectGoal(
+  projectId: number,
+  goal: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE Project SET wordsGoal = ? WHERE id = ?`,
+      [goal, projectId],
       function (err: Error | null) {
         if (err) {
           reject(err)
@@ -171,10 +208,9 @@ export function getProject(projectId: number): Promise<Project | undefined> {
   })
 }
 
-// todo type
 export function getCurrentWords(
   projectId: number
-): Promise<object | undefined> {
+): Promise<ProjectCurrentWords | undefined> {
   return new Promise((resolve, reject) => {
     db.get(
       `
@@ -200,7 +236,7 @@ LEFT JOIN (
 ) dr ON p.id = dr.projectId
 WHERE p.id = ?`,
       [projectId],
-      (err: Error | null, row: any | undefined) => {
+      (err: Error | null, row: ProjectCurrentWords | undefined) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)

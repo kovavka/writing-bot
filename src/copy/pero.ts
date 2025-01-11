@@ -27,6 +27,13 @@ export const texts = {
   zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
   selectProject: (name: string) => `Ууху, открываю гримуар _${name}_`,
   editProject: `Конечно, что ты хочешь поменять?`,
+  editGoal: `Конечно, слов ты хочешь написать в итоге?`,
+  goalUpdated: (
+    finalWords: number,
+    daysLeft: number,
+    dayGoal: number
+  ) => `Через ${daysLeft} ${getWordForm(daysLeft, forms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, forms.words)}. Твоя новая цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, forms.words)}
+\nУчти, чтобы побороться за приз на марафоне, тебе всё равно нужно написать 50к слов.`,
   projectRenamed: `Хорошее имя, ведьмочка!`,
   projectRemoved: `Гримуар удалён!`,
   setToday: (words: number) =>
@@ -44,6 +51,17 @@ export const texts = {
   changeName: `Разумеется, какое имя ты хочешь взять?`,
 }
 
+export type StaticButtonType<T extends string> = {
+  text: string
+  callback_data: T
+}
+
+export type DynamicButtonType<T extends string> = (id: number) => {
+  text: string
+  callback_data: `${T}_${number}`
+}
+
+// Record<string, StaticButtonType<QueryType> | DynamicButtonType<QueryType>>
 export const buttons = {
   newProject: { text: 'Новый гримуар 📜', callback_data: `new_project` },
   allProjects: { text: 'Гримуары 📚', callback_data: `all_projects` },
@@ -51,6 +69,10 @@ export const buttons = {
   editProject: (projectId: number) => ({
     text: 'Редактировать ✏️',
     callback_data: `edit_project_${projectId}`,
+  }),
+  editGoal: (projectId: number) => ({
+    text: 'Изменить цель 📈',
+    callback_data: `edit_goal_${projectId}`,
   }),
   renameProject: (projectId: number) => ({
     text: 'Переименовать 📝',

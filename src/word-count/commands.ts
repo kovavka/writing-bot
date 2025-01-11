@@ -13,7 +13,8 @@ import { getRemainingDays } from './utils'
 import { getChart } from './chart'
 import * as db from './database'
 import { MARATHON_END_STR } from './variables'
-import { MessageType, TextSessionData } from './chains'
+import { TextSessionData } from './chains'
+import { MessageType } from './types'
 
 export async function status(ctx: SimpleContext): Promise<void> {
   const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -41,12 +42,12 @@ export async function start(ctx: SimpleContext): Promise<void> {
 
   const user = await db.getUser(userId)
   if (user == null) {
-    db.addUser(userId, `${first_name} ${last_name}`)
+    await db.addUser(userId, `${first_name} ${last_name}`)
 
     startNewChain(sessionContext, 'set_name')
-    ctx.reply(texts.welcome)
+    await ctx.reply(texts.welcome)
   } else {
-    ctx.reply(texts.welcomeBack(user.name), {
+    await ctx.reply(texts.welcomeBack(user.name), {
       reply_markup: {
         inline_keyboard: [[buttons.allProjects]],
       },
@@ -64,8 +65,7 @@ export async function projectStatistics(
   ])
 
   if (project === undefined) {
-    return
-    // throw error?
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
   }
 
   const data = []

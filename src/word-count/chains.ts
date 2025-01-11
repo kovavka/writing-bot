@@ -4,13 +4,7 @@ import { dateToString, getToday, getTodayString } from '../shared/utils'
 import { getRemainingDays } from './utils'
 import * as db from './database'
 import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from './variables'
-
-export type MessageType =
-  | 'new_project'
-  | 'rename_project'
-  | 'update_words'
-  | 'set_name'
-  | 'change_name'
+import { MessageType } from './types'
 
 export type TextSessionData = {
   type: MessageType
@@ -104,6 +98,43 @@ async function wordsStartHandler(
   await createProjectCommand(ctx, projectName, words, 50000)
 }
 
+async function editProjectGoalHandler(
+  ctx: ContextWithSession,
+  goal: number,
+  sessionData: SimpleProjectData
+): Promise<void> {
+  const { projectId } = sessionData
+  if (projectId === undefined) {
+    return Promise.reject('ProjectId is undefined')
+  }
+
+  await db.updateProjectGoal(projectId, goal)
+
+  const today = getToday()
+  const dateEnd = MARATHON_END_DATE
+
+  const remainingDays = getRemainingDays(today, dateEnd)
+
+  const project = await db.getProject(projectId)
+  if (project === undefined) {
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
+  }
+
+  const dailyGoal = Math.ceil(goal / remainingDays)
+
+  await ctx.reply(
+    texts.goalUpdated(project.wordsStart + goal, remainingDays, dailyGoal),
+    {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [buttons.setToday(projectId), buttons.statistics(projectId)],
+        ],
+      },
+    }
+  )
+}
+
 async function renameProjectHandler(
   ctx: ContextWithSession,
   projectName: string,
@@ -111,8 +142,7 @@ async function renameProjectHandler(
 ): Promise<void> {
   const { projectId } = sessionData
   if (projectId === undefined) {
-    return
-    // throw error?
+    return Promise.reject('ProjectId is undefined')
   }
 
   await db.renameProject(projectId, projectName)
@@ -133,8 +163,7 @@ async function currentWordsHandler(
 ): Promise<void> {
   const { projectId } = sessionData
   if (projectId === undefined) {
-    return
-    // throw error?
+    return Promise.reject('ProjectId is undefined')
   }
 
   const todayStr = getTodayString()
@@ -177,8 +206,7 @@ async function updateUserName(
   message: string
 ): Promise<void> {
   const { id: userId } = ctx.from
-  // todo add await
-  db.updateUser(userId, userName)
+  await db.updateUser(userId, userName)
 
   await ctx.reply(message, {
     reply_markup: {
@@ -219,6 +247,15 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
         // words start
         inputType: 'number',
         handler: wordsStartHandler,
+      },
+    ],
+  },
+  {
+    type: 'edit_goal',
+    stages: [
+      {
+        inputType: 'number',
+        handler: editProjectGoalHandler,
       },
     ],
   },

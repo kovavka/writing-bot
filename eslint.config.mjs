@@ -10,4 +10,15 @@ export default [
   pluginJs.configs.recommended,
   ...tseslint.configs.recommended,
   eslintConfigPrettier,
+  {
+    rules: {
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+        },
+      ],
+      '@typescript-eslint/explicit-module-boundary-types': 'error',
+    },
+  },
 ]
