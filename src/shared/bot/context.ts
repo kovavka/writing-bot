@@ -1,17 +1,8 @@
-import { Telegraf, Context, NarrowedContext } from 'telegraf'
-// import {NarrowedContext} from "telegraf/src/context";
+import { Context } from 'telegraf'
 import { Update, Message } from 'telegraf/typings/core/types/typegram'
-// import { CallbackQuery } from 'telegraf/types';
-import Telegram from 'telegraf/src/telegram'
-import { CallbackQuery } from '@telegraf/types/markup'
-// import Context from "telegraf/src/context";
-
-// type Bot = Telegraf<Context>
-//
-// export type CommandContext = Parameters<Bot['command']>[1]
 
 type SessionData = {
-  session?: { [key: number]: {} }
+  session?: { [key: number]: object }
 }
 
 type MessageContext = Context<Update.MessageUpdate<Message.TextMessage>>

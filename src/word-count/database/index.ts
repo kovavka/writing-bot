@@ -1,4 +1,11 @@
-import { DayResult, Project, ProjectCurrentWords, User } from './types'
+import {
+  DayResult,
+  FullStatData,
+  Project,
+  ProjectCurrentWords,
+  TodayStatData,
+  User,
+} from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
 
@@ -13,7 +20,7 @@ const db = new sqlite3.Database(
   }
 )
 
-export function close() {
+export function close(): void {
   db.close((err: Error | null) => {
     if (err) {
       console.error('Error closing database:', err.message)
@@ -69,17 +76,13 @@ export function addUser(id: number, name: string): Promise<void> {
 
 export function updateUser(id: number, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE User SET name = ? WHERE id = ?`,
-      [name, id],
-      (err: Error | null) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve()
-        }
+    db.run(`UPDATE User SET name = ? WHERE id = ?`, [name, id], (err: Error | null) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
       }
-    )
+    })
   })
 }
 
@@ -122,10 +125,7 @@ export function renameProject(projectId: number, name: string): Promise<void> {
   })
 }
 
-export function updateProjectGoal(
-  projectId: number,
-  goal: number
-): Promise<void> {
+export function updateProjectGoal(projectId: number, goal: number): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
       `UPDATE Project SET wordsGoal = ? WHERE id = ?`,
@@ -208,9 +208,7 @@ export function getProject(projectId: number): Promise<Project | undefined> {
   })
 }
 
-export function getCurrentWords(
-  projectId: number
-): Promise<ProjectCurrentWords | undefined> {
+export function getCurrentWords(projectId: number): Promise<ProjectCurrentWords | undefined> {
   return new Promise((resolve, reject) => {
     db.get(
       `
@@ -269,7 +267,7 @@ export function getPrevDayResult(
 }
 
 // todo promise
-export function setResult(projectId: number, words: number, today: string) {
+export function setResult(projectId: number, words: number, today: string): void {
   db.get(
     `SELECT id FROM DayResult WHERE projectId = ? AND date = ?`,
     [projectId, today],
@@ -279,20 +277,20 @@ export function setResult(projectId: number, words: number, today: string) {
       } else if (row) {
         db.run(`UPDATE DayResult SET words = ? WHERE id = ?`, [words, row.id])
       } else {
-        db.run(
-          `INSERT INTO DayResult (projectId, date, words) VALUES (?, ?, ?)`,
-          [projectId, today, words]
-        )
+        db.run(`INSERT INTO DayResult (projectId, date, words) VALUES (?, ?, ?)`, [
+          projectId,
+          today,
+          words,
+        ])
       }
     }
   )
 }
 
-// todo type
 export function getStatistics(
   projectStart: string,
   projectEnd: string
-): Promise<object[]> {
+): Promise<FullStatData[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `
@@ -324,7 +322,7 @@ LEFT JOIN (
 WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
 `,
       [projectStart, projectEnd],
-      (err: Error | null, rows: object[]) => {
+      (err: Error | null, rows: FullStatData[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)
@@ -336,8 +334,7 @@ WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
   })
 }
 
-// todo type
-export function getTodayStatistics(resultDate: string): Promise<object[]> {
+export function getTodayStatistics(resultDate: string): Promise<TodayStatData[]> {
   return new Promise((resolve, reject) => {
     db.all(
       `
@@ -368,7 +365,7 @@ LEFT JOIN (
 WHERE dr1.date = ?
 `,
       [resultDate, resultDate],
-      (err: Error | null, rows: object[]) => {
+      (err: Error | null, rows: TodayStatData[]) => {
         if (err) {
           console.error('Error querying database:', err.message)
           reject(err)

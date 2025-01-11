@@ -30,3 +30,27 @@ export type ProjectCurrentWords = {
   latestDate: string
   latestWords: number
 }
+
+export type TodayStatData = {
+  userId: number
+  userName: string
+  todayDate: string
+  todayWords: number
+  lastResultDate: string | null
+  lastResultWords: number | null
+  projectName: string
+  wordsStart: number
+}
+
+export type FullStatData = {
+  userId: number
+  userName: string
+  projectId: number
+  projectName: string
+  dateStart: string
+  dateEnd: string
+  wordsStart: number
+  wordsGoal: number
+  latestDate: string
+  latestWords: number
+}

@@ -1,4 +1,4 @@
-export enum MessageType {
+export enum PeroTextChainType {
   NewProject = 'new_project',
   EditGoal = 'edit_goal',
   RenameProject = 'rename_project',
@@ -7,7 +7,7 @@ export enum MessageType {
   ChangeName = 'change_name',
 }
 
-export enum QueryType {
+export enum PeroQueryActionType {
   NewProject = 'new_project',
   Project = 'project',
   EditProject = 'edit_project',

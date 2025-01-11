@@ -1,21 +1,17 @@
-import { ContextWithSession } from '../../shared/types'
+import { ContextWithSession } from '../../shared/bot/context'
 import { texts } from '../copy/texts'
-import * as commands from './commands'
-import { SimpleProjectData, TextSessionData } from './chains'
+import { ProjectData } from './chains'
 import * as db from '../database'
-import { getTodayString } from '../../shared/utils'
-import { MessageType, QueryType } from '../types'
+import { PeroTextChainType, PeroQueryActionType } from '../types'
 import { buttons } from '../copy/buttons'
-
-type QueryCommand = {
-  type: QueryType
-  handler: (ctx: ContextWithSession, ...params: string[]) => Promise<void>
-  chainCommand?: MessageType
-}
+import { allProjectsActionHandler, getRemainingDays } from './shared'
+import { getChart } from './chart'
+import { getToday, getTodayString, stringToDate } from '../../shared/date'
+import { BotQueryAction, TextChainSessionData } from '../../shared/bot/actions'
 
 function saveProjectId(ctx: ContextWithSession, projectId: number): void {
   const { id: userId } = ctx.from
-  ctx.session[userId] = <Omit<SimpleProjectData, keyof TextSessionData>>{
+  ctx.session[userId] = <Omit<ProjectData, keyof TextChainSessionData<PeroTextChainType>>>{
     projectId,
   }
 }
@@ -29,19 +25,14 @@ async function updateProjectHandler(
 
   const row = await db.getCurrentWords(projectId)
   if (row === undefined) {
-    return Promise.reject(
-      `Couldn't find latest words, projectId = ${projectId}`
-    )
+    return Promise.reject(`Couldn't find latest words, projectId = ${projectId}`)
   }
   const prevWords = row.latestWords ?? row.wordsStart
 
   await ctx.reply(texts.setToday(prevWords))
 }
 
-async function getProjectHandler(
-  ctx: ContextWithSession,
-  projectIdStr: string
-): Promise<void> {
+async function getProjectHandler(ctx: ContextWithSession, projectIdStr: string): Promise<void> {
   const projectId = Number(projectIdStr)
   const project = await db.getProject(projectId)
   if (project === undefined) {
@@ -112,57 +103,107 @@ async function projectStatHandler(
   projectIdStr: string
 ): Promise<void> {
   const projectId = Number(projectIdStr)
-  await commands.projectStatistics(ctx, projectId)
+
+  const [rows, project] = await Promise.all([
+    db.getDayResults(projectId),
+    db.getProject(projectId),
+  ])
+
+  if (project === undefined) {
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
+  }
+
+  const data = []
+  const today = getToday()
+  const { dateStart: dateStartStr, dateEnd: dateEndStr, wordsStart, wordsGoal } = project
+
+  const dateStart = stringToDate(dateStartStr)
+  const dateEnd = stringToDate(dateEndStr)
+  const projectLength = getRemainingDays(dateStart, dateEnd)
+  const remainingDays = getRemainingDays(today, dateEnd)
+  const daysPassed = getRemainingDays(dateStart, today)
+
+  rows.forEach(({ date, words }) => {
+    const rowDate = stringToDate(date)
+    const index = getRemainingDays(dateStart, rowDate) - 1
+    data[index] = words
+  })
+
+  let prevRes = wordsStart
+  // we use daysPassed to render bars until current date
+  for (let i = 0; i < daysPassed; i++) {
+    if (data[i] !== undefined) {
+      prevRes = data[i]
+    } else {
+      data[i] = prevRes
+    }
+  }
+
+  const chart = await getChart(projectLength, data, wordsStart, wordsGoal + wordsStart)
+
+  const wordsLeft = wordsGoal + wordsStart - prevRes
+  await ctx.replyWithPhoto(
+    { source: chart },
+    {
+      caption:
+        wordsLeft <= 0 ? texts.statisticsAchieved : texts.statistics(remainingDays, wordsLeft),
+      reply_markup: {
+        inline_keyboard: [[buttons.setToday(projectId)]],
+      },
+    }
+  )
+
+  await ctx.answerCbQuery()
 }
 
-export const queryMap: QueryCommand[] = [
+export const queryMap: BotQueryAction<PeroQueryActionType, PeroTextChainType>[] = [
   {
-    type: QueryType.NewProject,
+    type: PeroQueryActionType.NewProject,
     handler: async (ctx: ContextWithSession): Promise<void> => {
       await ctx.reply(texts.setName)
     },
-    chainCommand: MessageType.NewProject,
+    chainCommand: PeroTextChainType.NewProject,
   },
   {
-    type: QueryType.Project,
+    type: PeroQueryActionType.Project,
     handler: getProjectHandler,
   },
   {
-    type: QueryType.EditProject,
+    type: PeroQueryActionType.EditProject,
     handler: editProjectHandler,
   },
   {
-    type: QueryType.EditGoal,
+    type: PeroQueryActionType.EditGoal,
     handler: editProjectGoalHandler,
-    chainCommand: MessageType.EditGoal,
+    chainCommand: PeroTextChainType.EditGoal,
   },
   {
-    type: QueryType.RenameProject,
+    type: PeroQueryActionType.RenameProject,
     handler: renameProjectHandler,
-    chainCommand: MessageType.RenameProject,
+    chainCommand: PeroTextChainType.RenameProject,
   },
   {
-    type: QueryType.RemoveProject,
+    type: PeroQueryActionType.RemoveProject,
     handler: removeProjectHandler,
   },
   {
-    type: QueryType.UpdateProject,
+    type: PeroQueryActionType.UpdateProject,
     handler: updateProjectHandler,
-    chainCommand: MessageType.UpdateWords,
+    chainCommand: PeroTextChainType.UpdateWords,
   },
   {
-    type: QueryType.StatProject,
+    type: PeroQueryActionType.StatProject,
     handler: projectStatHandler,
   },
   {
-    type: QueryType.AllProjects,
-    handler: commands.allProjects,
+    type: PeroQueryActionType.AllProjects,
+    handler: allProjectsActionHandler,
   },
   {
-    type: QueryType.ChangeName,
+    type: PeroQueryActionType.ChangeName,
     handler: async (ctx: ContextWithSession): Promise<void> => {
       await ctx.reply(texts.changeName)
     },
-    chainCommand: MessageType.ChangeName,
+    chainCommand: PeroTextChainType.ChangeName,
   },
 ]
