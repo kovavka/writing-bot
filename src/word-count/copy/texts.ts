@@ -26,7 +26,7 @@ export const texts = {
     daysLeft: number,
     dayGoal: number
   ): string => `Через ${daysLeft} ${getWordForm(daysLeft, forms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, forms.words)}. Твоя новая цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, forms.words)}
-\nУчти, чтобы побороться за приз на марафоне, тебе всё равно нужно написать 50к слов.`,
+\nПомни, чтобы побороться за приз на марафоне, тебе всё равно нужно написать 50к слов.`,
   projectRenamed: `Хорошее имя, ведьмочка!`,
   projectRemoved: `Гримуар удалён!`,
   setToday: (words: number): string =>
