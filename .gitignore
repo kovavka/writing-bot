@@ -10,4 +10,7 @@ backups
 
 src/**/*.db
 
+*.log
+*_pid.txt
+
 temp.js

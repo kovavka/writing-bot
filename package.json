@@ -14,9 +14,8 @@
   },
   "scripts": {
     "test": "jest",
-    "db:update": "node src/word-count/database/mirgate.js",
-    "build": "npx tsx",
-    "run:dev": "node --experimental-specifier-resolution=node --loader ts-node/esm src/index.ts",
+    "db:update": "node src/word-count/database/mirgate.mjs",
+    "run:dev": "npx tsx src/word-count/index.ts",
     "prepare": "husky"
   },
   "keywords": [],

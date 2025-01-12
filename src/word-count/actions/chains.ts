@@ -1,58 +1,30 @@
-import { ContextWithSession, TextMessageContext } from '../shared/types'
-import { buttons, texts } from '../copy/pero'
-import { dateToString, getToday, getTodayString } from '../shared/utils'
-import { getRemainingDays } from './utils'
-import * as db from './database'
-import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from './variables'
+import { ContextWithSession } from '../../shared/bot/context'
+import { texts } from '../copy/texts'
+import * as db from '../database'
+import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from '../variables'
+import { PeroTextChainType } from '../types'
+import { buttons } from '../copy/buttons'
+import { dateToString, getToday, getTodayString } from '../../shared/date'
+import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actions'
+import { getRemainingDays } from './shared'
 
-export type MessageType =
-  | 'new_project'
-  | 'rename_project'
-  | 'update_words'
-  | 'set_name'
-  | 'change_name'
+type BaseSessionData = TextChainSessionData<PeroTextChainType>
 
-export type TextSessionData = {
-  type: MessageType
-  stageIndex: number
-}
-
-export type NewProjectData = TextSessionData & {
+export type NewProjectChainData = BaseSessionData & {
   projectName?: string
   wordsStart?: string
 }
 
-export type SimpleProjectData = TextSessionData & {
+export type ProjectData = BaseSessionData & {
   projectId?: number
 }
 
-type ChainStage<T> =
-  | {
-      inputType: 'number'
-      handler: (
-        ctx: ContextWithSession<TextMessageContext>,
-        userInput: number,
-        sessionData: T
-      ) => Promise<void>
-    }
-  | {
-      inputType: 'string'
-      handler: (
-        ctx: ContextWithSession<TextMessageContext>,
-        userInput: string,
-        sessionData: T
-      ) => Promise<void>
-    }
-
-export type TextChainCommand<T> = {
-  type: MessageType
-  stages: ChainStage<T>[]
-}
+export type AnySessionData = NewProjectChainData | ProjectData | BaseSessionData
 
 async function projectNameHandler(
   ctx: ContextWithSession,
   userInput: string,
-  sessionData: NewProjectData
+  sessionData: NewProjectChainData
 ): Promise<void> {
   await ctx.reply(texts.setStart)
   sessionData.projectName = userInput
@@ -81,38 +53,64 @@ async function createProjectCommand(
   )
 
   const dailyGoal = Math.ceil(goal / remainingDays)
-  await ctx.reply(
-    texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal),
-    {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [
-          [buttons.setToday(projectId), buttons.statistics(projectId)],
-        ],
-      },
-    }
-  )
+  await ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal), {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
+    },
+  })
 }
 
 async function wordsStartHandler(
   ctx: ContextWithSession,
   words: number,
-  sessionData: NewProjectData
+  sessionData: NewProjectChainData
 ): Promise<void> {
   const { projectName = DEFAULT_PROJECT_NAME } = sessionData
   //todo remove after enabling custom goal
   await createProjectCommand(ctx, projectName, words, 50000)
 }
 
-async function renameProjectHandler(
+async function editProjectGoalHandler(
   ctx: ContextWithSession,
-  projectName: string,
-  sessionData: SimpleProjectData
+  goal: number,
+  sessionData: ProjectData
 ): Promise<void> {
   const { projectId } = sessionData
   if (projectId === undefined) {
-    return
-    // throw error?
+    return Promise.reject('ProjectId is undefined')
+  }
+
+  await db.updateProjectGoal(projectId, goal)
+
+  const today = getToday()
+  const dateEnd = MARATHON_END_DATE
+
+  const remainingDays = getRemainingDays(today, dateEnd)
+
+  const project = await db.getProject(projectId)
+  if (project === undefined) {
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
+  }
+
+  const dailyGoal = Math.ceil(goal / remainingDays)
+
+  await ctx.reply(texts.goalUpdated(project.wordsStart + goal, remainingDays, dailyGoal), {
+    parse_mode: 'Markdown',
+    reply_markup: {
+      inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
+    },
+  })
+}
+
+async function renameProjectHandler(
+  ctx: ContextWithSession,
+  projectName: string,
+  sessionData: ProjectData
+): Promise<void> {
+  const { projectId } = sessionData
+  if (projectId === undefined) {
+    return Promise.reject('ProjectId is undefined')
   }
 
   await db.renameProject(projectId, projectName)
@@ -129,12 +127,11 @@ async function renameProjectHandler(
 async function currentWordsHandler(
   ctx: ContextWithSession,
   currentWords: number,
-  sessionData: SimpleProjectData
+  sessionData: ProjectData
 ): Promise<void> {
   const { projectId } = sessionData
   if (projectId === undefined) {
-    return
-    // throw error?
+    return Promise.reject('ProjectId is undefined')
   }
 
   const todayStr = getTodayString()
@@ -144,8 +141,7 @@ async function currentWordsHandler(
   ])
 
   if (project === undefined) {
-    return
-    // throw error?
+    return Promise.reject(`Project is undefined, projectId = ${projectId}`)
   }
 
   const prevWords = result != null ? result.words : project.wordsStart
@@ -163,9 +159,7 @@ async function currentWordsHandler(
     {
       parse_mode: 'Markdown',
       reply_markup: {
-        inline_keyboard: [
-          [buttons.setToday(projectId), buttons.statistics(projectId)],
-        ],
+        inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
       },
     }
   )
@@ -177,8 +171,7 @@ async function updateUserName(
   message: string
 ): Promise<void> {
   const { id: userId } = ctx.from
-  // todo add await
-  db.updateUser(userId, userName)
+  await db.updateUser(userId, userName)
 
   await ctx.reply(message, {
     reply_markup: {
@@ -187,28 +180,17 @@ async function updateUserName(
   })
 }
 
-async function setUserNameHandler(
-  ctx: ContextWithSession,
-  userName: string
-): Promise<void> {
+async function setUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
   await updateUserName(ctx, userName, texts.userNameSet)
 }
 
-async function changeUserNameHandler(
-  ctx: ContextWithSession,
-  userName: string
-): Promise<void> {
+async function changeUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
   await updateUserName(ctx, userName, texts.userNameUpdated)
 }
 
-export type AnySessionData =
-  | NewProjectData
-  | SimpleProjectData
-  | TextSessionData
-
-export const textInputCommands: TextChainCommand<AnySessionData>[] = [
+export const textInputCommands: BotTextChainAction<PeroTextChainType, AnySessionData>[] = [
   {
-    type: 'new_project',
+    type: PeroTextChainType.NewProject,
     stages: [
       {
         // project name
@@ -223,7 +205,16 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'rename_project',
+    type: PeroTextChainType.EditGoal,
+    stages: [
+      {
+        inputType: 'number',
+        handler: editProjectGoalHandler,
+      },
+    ],
+  },
+  {
+    type: PeroTextChainType.RenameProject,
     stages: [
       {
         inputType: 'string',
@@ -232,7 +223,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'update_words',
+    type: PeroTextChainType.UpdateWords,
     stages: [
       {
         inputType: 'number',
@@ -241,7 +232,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'set_name',
+    type: PeroTextChainType.SetName,
     stages: [
       {
         inputType: 'string',
@@ -250,7 +241,7 @@ export const textInputCommands: TextChainCommand<AnySessionData>[] = [
     ],
   },
   {
-    type: 'change_name',
+    type: PeroTextChainType.ChangeName,
     stages: [
       {
         inputType: 'string',
