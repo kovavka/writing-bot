@@ -14,7 +14,7 @@
   },
   "scripts": {
     "test": "jest",
-    "db:update": "node src/word-count/database/mirgate.js",
+    "db:update": "node src/word-count/database/mirgate.mjs",
     "run:dev": "npx tsx src/word-count/index.ts",
     "prepare": "husky"
   },
