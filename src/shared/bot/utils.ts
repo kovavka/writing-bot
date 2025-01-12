@@ -1,4 +1,4 @@
-import { ContextWithSession } from './context'
+import { ContextWithSession, SimpleContext } from './context'
 import { TextChainSessionData } from './actions'
 
 export function startNewChain<T extends string>(ctx: ContextWithSession, type: T): void {
@@ -22,4 +22,12 @@ export function isValidNumber(userInput: string): boolean {
     /^\d+$/.test(userInput) &&
     !isNaN(Number(userInput))
   )
+}
+
+export function initSession<T extends SimpleContext>(ctx: T): ContextWithSession<T> {
+  if (ctx.session == null) {
+    ctx.session = {}
+  }
+
+  return ctx as ContextWithSession<T>
 }

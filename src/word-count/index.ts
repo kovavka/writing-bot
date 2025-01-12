@@ -1,6 +1,6 @@
 import * as db from './database'
 import { TELEGRAM_BOT_TOKEN_PERO } from '../shared/variables'
-import { initSession, WritingBot } from '../shared/bot/bot'
+import { WritingBot } from '../shared/bot/bot'
 import { texts } from './copy/texts'
 import { queryMap } from './actions/queries'
 import { SimpleContext } from '../shared/bot/context'
@@ -8,10 +8,11 @@ import { textInputCommands } from './actions/chains'
 import { buttons } from './copy/buttons'
 import { errors } from './copy/errors'
 import { PeroTextChainType } from './types'
-import { startNewChain } from '../shared/bot/utils'
+import { initSession, startNewChain } from '../shared/bot/utils'
 import { commands } from './actions/commands'
+import { Telegraf } from 'telegraf'
 
-const bot = new WritingBot(TELEGRAM_BOT_TOKEN_PERO, errors)
+const bot = new Telegraf(TELEGRAM_BOT_TOKEN_PERO)
 
 async function startHandler(ctx: SimpleContext): Promise<void> {
   const sessionContext = initSession(ctx)
@@ -33,10 +34,11 @@ async function startHandler(ctx: SimpleContext): Promise<void> {
   }
 }
 
-bot.setStart(startHandler)
-bot.setCommands(commands)
-bot.setQueries(queryMap)
-bot.setChainActions(textInputCommands)
+new WritingBot(bot, errors)
+  .setStart(startHandler)
+  .setCommands(commands)
+  .setQueries(queryMap)
+  .setChainActions(textInputCommands)
 
 bot.launch()
 console.log('Bot is running...')
