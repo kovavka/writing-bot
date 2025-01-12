@@ -1,6 +1,4 @@
 #!/bin/bash
 
-source ./stop.sh pero
-source ./stop.sh meows
-source ./start.sh pero
-source ./start.sh meows
+source ./restart.sh pero
+source ./restart.sh meows
