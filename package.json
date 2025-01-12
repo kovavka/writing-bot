@@ -14,8 +14,10 @@
   },
   "scripts": {
     "test": "jest",
-    "db:update": "node src/word-count/database/mirgate.mjs",
-    "run:dev": "npx tsx src/word-count/index.ts",
+    "db:update:pero": "node src/word-count/database/mirgate.mjs",
+    "db:update:meows": "node src/sprint/database/mirgate.mjs",
+    "run:dev:pero": "npx tsx src/word-count/index.ts",
+    "run:dev:meows": "npx tsx src/sprint/index.ts",
     "prepare": "husky"
   },
   "keywords": [],
