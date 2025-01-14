@@ -8,11 +8,23 @@ import { textInputCommands } from './actions/chains'
 import { errors } from './copy/errors'
 import { commands } from './actions/commands'
 import { Telegraf } from 'telegraf'
+import { initSession } from '../shared/bot/utils'
 
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_MEOWS)
 
 async function startHandler(ctx: SimpleContext): Promise<void> {
-  await ctx.reply(texts.welcome)
+  initSession(ctx)
+  const { id: userId, first_name, last_name } = ctx.from
+
+  const user = await db.getUser(userId)
+  if (user == null) {
+    await db.addUser(userId, `${first_name} ${last_name}`)
+
+    await ctx.reply(texts.welcome)
+  } else {
+    // add settings
+    await ctx.reply(texts.welcomeBack(user.name))
+  }
 }
 
 new WritingBot(bot, errors)

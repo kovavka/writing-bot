@@ -39,29 +39,13 @@ export function getUser(id: number): Promise<User | undefined> {
 
 export function addUser(id: number, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT id FROM User WHERE id = ?`,
-      [id],
-      (err: Error | null, row: User | undefined) => {
-        if (err) {
-          reject(err)
-        } else if (row === undefined) {
-          resolve()
-        } else {
-          db.run(
-            `INSERT INTO User (id, name) VALUES (?, ?)`,
-            [id, name],
-            (err: Error | null) => {
-              if (err) {
-                reject(err)
-              } else {
-                resolve()
-              }
-            }
-          )
-        }
+    db.run(`INSERT INTO User (id, name) VALUES (?, ?)`, [id, name], (err: Error | null) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
       }
-    )
+    })
   })
 }
 
@@ -81,12 +65,13 @@ export function createEvent(
   startDate: string,
   startTime: string,
   sprintsNumber: number,
-  sprintDuration: number
+  sprintDuration: number,
+  status: EventStatus = 'created'
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO Event (startDate, startTime, sprintsNumber, sprintDuration) VALUES (?, ?, ?, ?)`,
-      [startDate, startTime, sprintsNumber, sprintDuration],
+      `INSERT INTO Event (startDate, startTime, sprintsNumber, sprintDuration, status) VALUES (?, ?, ?, ?, ?)`,
+      [startDate, startTime, sprintsNumber, sprintDuration, status],
       function (err: Error | null) {
         if (err) {
           reject(err)
@@ -105,6 +90,18 @@ export function updateEventStatus(id: number, status: EventStatus): Promise<void
         reject(err)
       } else {
         resolve()
+      }
+    })
+  })
+}
+
+export function getUsers(): Promise<User[]> {
+  return new Promise((resolve, reject) => {
+    db.all(`SELECT * FROM User`, [], (err: Error | null, rows: User[]) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(rows)
       }
     })
   })

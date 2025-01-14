@@ -8,12 +8,22 @@ async function createEventHandler(ctx: ContextWithSession): Promise<void> {
   await ctx.reply(texts.setEventDate)
 }
 
-async function openEventHandler(ctx: ContextWithSession, eventIdStr: string): Promise<void> {
+async function openEventHandler(
+  ctx: ContextWithSession,
+  sendMessage: (userIds: number[], text: string) => Promise<void>,
+  eventIdStr: string
+): Promise<void> {
   const eventId = Number(eventIdStr)
 
   await ctx.reply(texts.eventNotificationStarted)
+  const users = await db.getUsers()
 
-  // this.bot.telegram.sendMessage(userId, `Something went wrong. ${err}`)
+  console.log(users)
+
+  await sendMessage(
+    users.map(x => x.id),
+    'Event announced'
+  )
 
   await db.updateEventStatus(eventId, 'open')
 
@@ -32,6 +42,7 @@ export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[
   },
   {
     type: MeowsQueryActionType.OpenEvent,
+    handlerType: 'allow_global',
     handler: openEventHandler,
   },
   {

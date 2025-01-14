@@ -39,6 +39,21 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
     this.bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
   }
 
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms))
+  }
+
+  private async sendMessage(userIds: number[], text: string): Promise<void> {
+    for (const userId of userIds) {
+      try {
+        await this.bot.telegram.sendMessage(userId, text)
+      } catch (error) {
+        console.log(`Failed to send message to user ID: ${userId}`, error)
+      }
+      await this.delay(100)
+    }
+  }
+
   // public for tests only
   async commandCallback(
     ctx: SimpleContext,
@@ -89,7 +104,12 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
           command.length > queryCommand.type.length + 1
             ? command.substring(queryCommand.type.length + 1).split('_')
             : []
-        await queryCommand.handler(sessionContext, ...params)
+
+        if (queryCommand.handlerType === 'allow_global') {
+          await queryCommand.handler(sessionContext, this.sendMessage.bind(this), ...params)
+        } else {
+          await queryCommand.handler(sessionContext, ...params)
+        }
         if (queryCommand.chainCommand !== undefined) {
           startNewChain(sessionContext, queryCommand.chainCommand)
         }
