@@ -12,6 +12,12 @@ export type BotCommand = {
   handler: (ctx: SimpleContext) => Promise<void>
 }
 
+export type SendMessageType<QueryType extends string> = (
+  userIds: number[],
+  text: string,
+  buttons: InlineKeyboardButton<QueryType>[]
+) => Promise<void>
+
 export type BotQueryAction<QueryType extends string, ChainType extends string> =
   | {
       type: QueryType
@@ -27,11 +33,7 @@ export type BotQueryAction<QueryType extends string, ChainType extends string> =
       handlerType: 'allow_global'
       handler: (
         ctx: ContextWithSession<CallbackQueryContext>,
-        sendMessage: (
-          userIds: number[],
-          text: string,
-          buttons: InlineKeyboardButton<QueryType>[]
-        ) => Promise<void>,
+        sendMessage: SendMessageType<QueryType>,
         ...params: string[]
       ) => Promise<void>
       chainCommand?: ChainType

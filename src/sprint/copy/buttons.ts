@@ -16,4 +16,12 @@ export const buttons = {
     text: 'Записаться',
     callback_data: `${MeowsQueryActionType.Register}_${eventId}`,
   }),
+  joinEvent: (eventId: number): ButtonType => ({
+    text: 'Присоединиться',
+    callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
+  }),
+  setWordsEnd: (eventId: number): ButtonType => ({
+    text: 'Ввести результат',
+    callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
+  }),
 }

@@ -1,4 +1,4 @@
-import { Event, User } from './types'
+import { Event, Sprint, User } from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
 import { EventStatus } from '../types'
@@ -122,7 +122,7 @@ export function updateEventStatus(id: number, status: EventStatus): Promise<void
   })
 }
 
-export function registerToEvent(userId: number, eventId: number): Promise<void> {
+export function createEventUser(userId: number, eventId: number): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT INTO EventUser (userId, eventId) VALUES (?, ?)`,
@@ -132,6 +132,42 @@ export function registerToEvent(userId: number, eventId: number): Promise<void> 
           reject(err)
         } else {
           resolve()
+        }
+      }
+    )
+  })
+}
+
+export function updateEventUser(
+  userId: number,
+  eventId: number,
+  active: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE EventUser SET active = ? WHERE userId = ? AND eventId = ?`,
+      [active, userId, eventId],
+      (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+      }
+    )
+  })
+}
+
+export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`,
+      [eventId],
+      (err: Error | null, row: Sprint | undefined) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(row)
         }
       }
     )
@@ -154,15 +190,35 @@ export function createSprint(eventId: number, startDateTime: string): Promise<nu
   })
 }
 
-export function joinSprint(
+export function createSprintUser(
   userId: number,
   sprintId: number,
   wordsStart: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO UserSprint (userId, sprintId, wordsStart) VALUES (?, ?)`,
+      `INSERT INTO SprintUser (userId, sprintId, wordsStart) VALUES (?, ?, ?)`,
       [userId, sprintId, wordsStart],
+      (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+      }
+    )
+  })
+}
+
+export function updateSprintUser(
+  userId: number,
+  sprintId: number,
+  wordsEnd: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE SprintUser SET wordsEnd = ? WHERE userId = ? AND sprintId = ?`,
+      [userId, sprintId, wordsEnd],
       (err: Error | null) => {
         if (err) {
           reject(err)

@@ -11,6 +11,7 @@ import { callbackQuery } from 'telegraf/filters'
 import { initSession, isValidNumber, isValidString, startNewChain } from './utils'
 import { BotCommand, BotQueryAction, BotTextChainAction, TextChainSessionData } from './actions'
 import { ErrorMessage, InlineKeyboardButton } from '../copy/types'
+import { delay } from '../delay'
 
 const MESSAGE_TIMEOUT = 1000
 
@@ -41,10 +42,6 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
     this.bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
   }
 
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
-  }
-
   private async sendMessage(
     userIds: number[],
     text: string,
@@ -62,7 +59,7 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
       } catch (error) {
         console.log(`Failed to send message to user ID: ${userId}`, error)
       }
-      await this.delay(MESSAGE_TIMEOUT)
+      await delay(MESSAGE_TIMEOUT)
     }
   }
 

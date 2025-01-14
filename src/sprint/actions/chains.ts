@@ -13,7 +13,11 @@ export type CreateEventChainData = BaseSessionData & {
   sprintsNumber?: number
 }
 
-export type AnySessionData = CreateEventChainData | BaseSessionData
+export type EventData = BaseSessionData & {
+  eventId?: number
+}
+
+export type AnySessionData = EventData | CreateEventChainData | BaseSessionData
 
 async function eventDateTimeHandler(
   ctx: ContextWithSession,
@@ -55,13 +59,69 @@ async function eventSprintDurationHandler(
 }
 
 async function wordsStartHandler(
-  ctx: ContextWithSession
-  // words: number,
+  ctx: ContextWithSession,
+  words: number,
+  sessionData: EventData
 ): Promise<void> {
-  await ctx.reply(texts.wordsSet)
+  const { id: userId } = ctx.from
+  const { eventId } = sessionData
+  if (eventId === undefined) {
+    return Promise.reject('EventId is undefined')
+  }
+
+  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
+
+  if (event === undefined) {
+    return Promise.reject(`Event is undefined, eventId = ${eventId}`)
+  }
+
+  if (sprint === undefined) {
+    return Promise.reject(`Sprint is undefined, eventId = ${sprint}`)
+  }
+
+  if (event.status === 'finished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+  } else {
+    await db.createSprintUser(userId, sprint.id, words)
+
+    // todo different messages depending on if the sprint is started or not
+    await ctx.reply(texts.wordsSet)
+  }
 }
 
-export const textInputCommands: BotTextChainAction<MeowsTextChainType, BaseSessionData>[] = [
+async function wordsEndHandler(
+  ctx: ContextWithSession,
+  words: number,
+  sessionData: EventData
+): Promise<void> {
+  const { id: userId } = ctx.from
+  const { eventId } = sessionData
+  if (eventId === undefined) {
+    return Promise.reject('EventId is undefined')
+  }
+
+  // get SprintUser row and check
+  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
+
+  if (event === undefined) {
+    return Promise.reject(`Event is undefined, eventId = ${eventId}`)
+  }
+
+  if (sprint === undefined) {
+    return Promise.reject(`Sprint is undefined, eventId = ${sprint}`)
+  }
+
+  if (event.status === 'finished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+  } else {
+    await db.updateSprintUser(userId, sprint.id, words)
+
+    // todo
+    await ctx.reply(texts.wordsUpdated(100))
+  }
+}
+
+export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessionData>[] = [
   {
     type: MeowsTextChainType.CreateEvent,
     stages: [
@@ -85,6 +145,15 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, BaseSessi
       {
         inputType: 'number',
         handler: wordsStartHandler,
+      },
+    ],
+  },
+  {
+    type: MeowsTextChainType.SetWordsEnd,
+    stages: [
+      {
+        inputType: 'number',
+        handler: wordsEndHandler,
       },
     ],
   },
