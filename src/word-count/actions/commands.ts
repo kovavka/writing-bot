@@ -36,6 +36,11 @@ async function adminStatTodayHandler(ctx: SimpleContext): Promise<void> {
   const today = moment().format(DATE_FORMAT)
   const rows = await db.getTodayStatistics(today)
 
+  if (rows.length === 0) {
+    await ctx.reply('Сегодня результатов нет')
+    return
+  }
+
   const resultByUser: Record<string, { userName: string; wordsDiff: number }> = {}
   rows.forEach(row => {
     const { userId, userName, wordsStart, lastResultWords, todayWords } = row

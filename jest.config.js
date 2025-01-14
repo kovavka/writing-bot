@@ -5,4 +5,5 @@ export default {
   testMatch: ['**/tests/**/*.ts', '**/?(*.)+test.ts'],
   moduleDirectories: ['node_modules', '<rootDir>/packages'],
   setupFiles: ['<rootDir>/.jest/setup.js'],
+  setupFilesAfterEnv: ['<rootDir>/.jest/setup-after-env.js'],
 }

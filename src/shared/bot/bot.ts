@@ -49,7 +49,7 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
       clearSession(ctx)
 
       // if user has permissions to run the command
-      if (needsAdminPermissions !== true || !isAdmin(ctx)) {
+      if (needsAdminPermissions !== true || isAdmin(ctx)) {
         await handler(ctx)
       } else {
         await ctx.reply(this.errors.unknownCommand)

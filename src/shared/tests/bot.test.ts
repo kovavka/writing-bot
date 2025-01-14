@@ -228,14 +228,14 @@ describe('WritingBot', () => {
     it('should execute text chain with string argument command if exist', async () => {
       const sessionData = {
         type: 'multiple',
-        stageIndex: chainHandler1,
+        stageIndex: 0,
       }
       context.session[0] = sessionData
       context.message.text = 'some text'
 
       await writingBot.textInputHandler(context, chainActions)
 
-      expect(numberCommandHandler).toHaveBeenCalledWith(context, 'some text', sessionData)
+      expect(chainHandler1).toHaveBeenCalledWith(context, 'some text', sessionData)
     })
 
     it('should execute text chain command with number argument if exist', async () => {
@@ -261,7 +261,7 @@ describe('WritingBot', () => {
 
       await writingBot.textInputHandler(context, chainActions)
 
-      expect(chainHandler2).toHaveBeenCalledWith(context, 5, sessionData)
+      expect(chainHandler2).toHaveBeenCalledWith(context, 'text', sessionData)
     })
 
     it('should update stage index when chain is not finished', async () => {
