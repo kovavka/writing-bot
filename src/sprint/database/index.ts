@@ -1,17 +1,15 @@
 import { User } from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
+import { EventStatus } from '../types'
 
-const db = new sqlite3.Database(
-  path.join(__dirname, './word-count.db'),
-  (err: Error | null) => {
-    if (err) {
-      console.error('Error opening database:', err.message)
-    } else {
-      console.log('Connected to the SQLite database.')
-    }
+const db = new sqlite3.Database(path.join(__dirname, './sprint.db'), (err: Error | null) => {
+  if (err) {
+    console.error('Error opening database:', err.message)
+  } else {
+    console.log('Connected to the SQLite database.')
   }
-)
+})
 
 export function close(): void {
   db.close((err: Error | null) => {
@@ -76,5 +74,78 @@ export function updateUser(id: number, name: string): Promise<void> {
         resolve()
       }
     })
+  })
+}
+
+export function createEvent(
+  startDate: string,
+  startTime: string,
+  sprintsNumber: number,
+  sprintDuration: number
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO Event (startDate, startTime, sprintsNumber, sprintDuration) VALUES (?, ?, ?, ?)`,
+      [startDate, startTime, sprintsNumber, sprintDuration],
+      function (err: Error | null) {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(this.lastID)
+        }
+      }
+    )
+  })
+}
+
+export function updateEventStatus(id: number, status: EventStatus): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(`UPDATE Event SET status = ? WHERE id = ?`, [status, id], (err: Error | null) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
+export function createSprint(
+  eventId: number,
+  startDate: string,
+  startTime: string
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO Sprint (eventId, startDate, startTime) VALUES (?, ?, ?)`,
+      [eventId, startDate, startTime],
+      function (err: Error | null) {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(this.lastID)
+        }
+      }
+    )
+  })
+}
+
+export function joinSprint(
+  userId: number,
+  sprintId: number,
+  wordsStart: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO UserSprint (userId, sprintId, wordsStart) VALUES (?, ?)`,
+      [userId, sprintId, wordsStart],
+      (err: Error | null) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve()
+        }
+      }
+    )
   })
 }

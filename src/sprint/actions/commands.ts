@@ -3,6 +3,7 @@ import { texts } from '../copy/texts'
 import { TIME_ZONE } from '../../shared/variables'
 import { getToday } from '../../shared/date'
 import { BotCommand } from '../../shared/bot/actions'
+import { buttons } from '../copy/buttons'
 
 async function statusHandler(ctx: SimpleContext): Promise<void> {
   const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -11,11 +12,15 @@ async function statusHandler(ctx: SimpleContext): Promise<void> {
 }
 
 async function helpHandler(ctx: SimpleContext): Promise<void> {
-  // await ctx.reply(texts.help, {
-  //   reply_markup: {
-  //     inline_keyboard: [[buttons.newProject, buttons.allProjects]],
-  //   },
-  // })
+  await ctx.reply(texts.help)
+}
+
+async function adminHandler(ctx: SimpleContext): Promise<void> {
+  await ctx.reply(texts.admin, {
+    reply_markup: {
+      inline_keyboard: [[buttons.createEvent]],
+    },
+  })
 }
 
 export const commands: BotCommand[] = [
@@ -26,5 +31,10 @@ export const commands: BotCommand[] = [
   {
     command: 'help',
     handler: helpHandler,
+  },
+  {
+    command: 'admin',
+    admin: true,
+    handler: adminHandler,
   },
 ]

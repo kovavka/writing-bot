@@ -12,7 +12,6 @@ type BaseSessionData = TextChainSessionData<PeroTextChainType>
 
 export type NewProjectChainData = BaseSessionData & {
   projectName?: string
-  wordsStart?: string
 }
 
 export type ProjectData = BaseSessionData & {

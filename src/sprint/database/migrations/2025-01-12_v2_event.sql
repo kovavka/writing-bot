@@ -4,4 +4,5 @@ CREATE TABLE IF NOT EXISTS Event (
     startTime TEXT NOT NULL,
     sprintsNumber INTEGER NOT NULL,
     sprintDuration INTEGER NOT NULL
+    status TEXT NOT NULL
 )
