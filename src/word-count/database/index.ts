@@ -48,29 +48,13 @@ export function getUser(id: number): Promise<User | undefined> {
 
 export function addUser(id: number, name: string): Promise<void> {
   return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT id FROM User WHERE id = ?`,
-      [id],
-      (err: Error | null, row: User | undefined) => {
-        if (err) {
-          reject(err)
-        } else if (row === undefined) {
-          resolve()
-        } else {
-          db.run(
-            `INSERT INTO User (id, name) VALUES (?, ?)`,
-            [id, name],
-            (err: Error | null) => {
-              if (err) {
-                reject(err)
-              } else {
-                resolve()
-              }
-            }
-          )
-        }
+    db.run(`INSERT INTO User (id, name) VALUES (?, ?)`, [id, name], (err: Error | null) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
       }
-    )
+    })
   })
 }
 
