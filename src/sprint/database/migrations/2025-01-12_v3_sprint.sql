@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS Sprint (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     eventId INTEGER NOT NULL,
-    startDate TEXT NOT NULL,
-    startTime TEXT NOT NULL,
+    startDateTime TEXT NOT NULL,
     FOREIGN KEY (eventId) REFERENCES Event (id)
 )

@@ -4,32 +4,23 @@ import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actio
 import { texts } from '../copy/texts'
 import * as db from '../database'
 import { buttons } from '../copy/buttons'
+import { stringToDateTime } from '../../shared/date'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
 export type CreateEventChainData = BaseSessionData & {
-  startDate?: string
-  startTime?: string
+  startDateTime?: string
   sprintsNumber?: number
 }
 
 export type AnySessionData = CreateEventChainData | BaseSessionData
 
-async function eventDateHandler(
+async function eventDateTimeHandler(
   ctx: ContextWithSession,
-  startDate: string,
+  startDateTime: string,
   sessionData: CreateEventChainData
 ): Promise<void> {
-  sessionData.startDate = startDate
-  await ctx.reply(texts.setEventTime)
-}
-
-async function eventTimeHandler(
-  ctx: ContextWithSession,
-  startTime: string,
-  sessionData: CreateEventChainData
-): Promise<void> {
-  sessionData.startTime = startTime
+  sessionData.startDateTime = startDateTime
   await ctx.reply(texts.setEventSprintsNumber)
 }
 
@@ -47,16 +38,16 @@ async function eventSprintDurationHandler(
   sprintDuration: number,
   sessionData: CreateEventChainData
 ): Promise<void> {
-  const { startDate, startTime, sprintsNumber } = sessionData
-  if (startDate === undefined || startTime === undefined || sprintsNumber === undefined) {
+  const { startDateTime, sprintsNumber } = sessionData
+  if (startDateTime === undefined || sprintsNumber === undefined) {
     return Promise.reject(
-      `Create event: data is missing. startDate=${startDate}, startTime=${startTime}, sprintsNumber=${sprintsNumber}`
+      `Create event: data is missing. startDateTime=${startDateTime}, sprintsNumber=${sprintsNumber}`
     )
   }
 
-  const id = await db.createEvent(startDate, startTime, sprintsNumber, sprintDuration)
+  const id = await db.createEvent(startDateTime, sprintsNumber, sprintDuration)
 
-  await ctx.reply(texts.eventCreated(startDate, startTime), {
+  await ctx.reply(texts.eventCreated(stringToDateTime(startDateTime)), {
     reply_markup: {
       inline_keyboard: [[buttons.openEvent(id)]],
     },
@@ -76,11 +67,7 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, BaseSessi
     stages: [
       {
         inputType: 'string',
-        handler: eventDateHandler,
-      },
-      {
-        inputType: 'string',
-        handler: eventTimeHandler,
+        handler: eventDateTimeHandler,
       },
       {
         inputType: 'number',

@@ -1,10 +1,10 @@
 import { ContextWithSession } from '../../shared/bot/context'
 import { texts } from '../copy/texts'
 import * as db from '../database'
-import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from '../variables'
+import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE, MARATHON_END_STR } from '../variables'
 import { PeroTextChainType } from '../types'
 import { buttons } from '../copy/buttons'
-import { dateToString, getToday, getTodayString } from '../../shared/date'
+import { getToday, getTodayString } from '../../shared/date'
 import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actions'
 import { getRemainingDays } from './shared'
 
@@ -39,6 +39,7 @@ async function createProjectCommand(
 
   const today = getToday()
   const dateEnd = MARATHON_END_DATE
+  const dateEndStr = MARATHON_END_STR
 
   const remainingDays = getRemainingDays(today, dateEnd)
 
@@ -46,7 +47,7 @@ async function createProjectCommand(
     userId,
     projectName,
     getTodayString(),
-    dateToString(dateEnd),
+    dateEndStr,
     wordsStart,
     goal
   )

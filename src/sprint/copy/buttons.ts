@@ -12,8 +12,8 @@ export const buttons = {
     text: 'Открыть регистрацию',
     callback_data: `${MeowsQueryActionType.OpenEvent}_${eventId}`,
   }),
-  register: <ButtonType>{
+  register: (eventId: number): ButtonType => ({
     text: 'Записаться',
-    callback_data: MeowsQueryActionType.Register,
-  },
+    callback_data: `${MeowsQueryActionType.Register}_${eventId}`,
+  }),
 }

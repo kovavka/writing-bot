@@ -17,3 +17,7 @@ export const { TELEGRAM_BOT_TOKEN_PERO, TELEGRAM_BOT_TOKEN_MEOWS, ADMIN_ID } =
 
 export const TIME_ZONE = 'Europe/Moscow'
 export const DATE_FORMAT = 'YYYY-MM-DD'
+export const DATE_TIME_FORMAT = 'YYYY-MM-DD HH:mm'
+
+export const DATE_FORMAT_OUTPUT = 'DD.MM.YYYY'
+export const TIME_FORMAT_OUTPUT = 'HH:mm'

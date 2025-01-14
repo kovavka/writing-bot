@@ -7,8 +7,7 @@ export type User = {
 
 export type Event = {
   id: number
-  startDate: string
-  startTime: string
+  startDateTime: string
   sprintsNumber: number
   sprintDuration: number
   status: EventStatus
@@ -17,8 +16,7 @@ export type Event = {
 export type Sprint = {
   id: number
   eventId: number
-  startDate: string
-  startTime: string
+  startDateTime: string
 }
 
 export type EventUser = {
