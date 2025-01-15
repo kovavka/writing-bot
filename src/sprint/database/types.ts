@@ -22,12 +22,12 @@ export type Sprint = {
 export type EventUser = {
   eventId: number
   userId: number
-  active: number
+  active?: 0 | 1
+  startWords?: number
 }
 
 export type SprintUser = {
   sprintId: number
   userId: number
-  wordsStart: number
-  wordsEnd: number
+  finalWords: number
 }

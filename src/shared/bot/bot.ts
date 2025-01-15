@@ -1,6 +1,7 @@
 import { ADMIN_ID } from '../variables'
 import {
   CallbackQueryContext,
+  CommandMessageContext,
   ContextWithSession,
   SimpleContext,
   TextMessageContext,
@@ -45,10 +46,21 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   private async sendMessage(
     userIds: number[],
     text: string,
-    buttons: InlineKeyboardButton<QueryType>[]
+    buttons: InlineKeyboardButton<QueryType>[],
+    nextChain?: ChainType
   ): Promise<void> {
     for (const userId of userIds) {
       try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const botContext = initSession(this.bot.context as any)
+        botContext.session[userId] = {
+          ...(botContext.session[userId] ?? {}),
+          type: nextChain,
+          stageIndex: 0,
+        }
+
+        console.log(nextChain)
+
         await this.bot.telegram.sendMessage(
           userId,
           text,
@@ -65,8 +77,8 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
 
   // public for tests only
   async commandCallback(
-    ctx: SimpleContext,
-    handler: (ctx: SimpleContext) => Promise<void>,
+    ctx: CommandMessageContext,
+    handler: (ctx: CommandMessageContext) => Promise<void>,
     needsAdminPermissions?: boolean
   ): Promise<void> {
     try {

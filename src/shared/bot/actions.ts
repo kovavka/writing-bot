@@ -1,7 +1,7 @@
 import {
   CallbackQueryContext,
+  CommandMessageContext,
   ContextWithSession,
-  SimpleContext,
   TextMessageContext,
 } from './context'
 import { InlineKeyboardButton } from '../copy/types'
@@ -9,13 +9,14 @@ import { InlineKeyboardButton } from '../copy/types'
 export type BotCommand = {
   command: string
   admin?: boolean
-  handler: (ctx: SimpleContext) => Promise<void>
+  handler: (ctx: CommandMessageContext) => Promise<void>
 }
 
-export type SendMessageType<QueryType extends string> = (
+export type SendMessageType<QueryType extends string, ChainType extends string> = (
   userIds: number[],
   text: string,
-  buttons: InlineKeyboardButton<QueryType>[]
+  buttons: InlineKeyboardButton<QueryType>[],
+  nextChain?: ChainType
 ) => Promise<void>
 
 export type BotQueryAction<QueryType extends string, ChainType extends string> =
@@ -33,7 +34,7 @@ export type BotQueryAction<QueryType extends string, ChainType extends string> =
       handlerType: 'allow_global'
       handler: (
         ctx: ContextWithSession<CallbackQueryContext>,
-        sendMessage: SendMessageType<QueryType>,
+        sendMessage: SendMessageType<QueryType, ChainType>,
         ...params: string[]
       ) => Promise<void>
       chainCommand?: ChainType

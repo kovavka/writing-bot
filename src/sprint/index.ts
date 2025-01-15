@@ -33,6 +33,9 @@ new WritingBot(bot, errors)
   .setQueries(queryMap)
   .setChainActions(textInputCommands)
 
+// get event & sprint
+// eventData = {}
+
 bot.launch()
 console.log('Meows is running...')
 

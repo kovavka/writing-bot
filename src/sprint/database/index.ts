@@ -11,6 +11,30 @@ const db = new sqlite3.Database(path.join(__dirname, './sprint.db'), (err: Error
   }
 })
 
+function getAll<T>(sql: string, params: unknown[]): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err: Error | null, rows: T[]) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(rows)
+      }
+    })
+  })
+}
+
+function getOne<T>(sql: string, params: unknown[]): Promise<T> {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err: Error | null, row: T) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve(row)
+      }
+    })
+  })
+}
+
 export function close(): void {
   db.close((err: Error | null) => {
     if (err) {
@@ -141,12 +165,13 @@ export function createEventUser(userId: number, eventId: number): Promise<void> 
 export function updateEventUser(
   userId: number,
   eventId: number,
-  active: number
+  active?: 0 | 1,
+  startWords?: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE EventUser SET active = ? WHERE userId = ? AND eventId = ?`,
-      [active, userId, eventId],
+      `UPDATE EventUser SET active = ?, startWords = ? WHERE userId = ? AND eventId = ?`,
+      [active, startWords, userId, eventId],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -158,36 +183,16 @@ export function updateEventUser(
   })
 }
 
-export function getEventUsers(eventId: number): Promise<EventUser[]> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM EventUser WHERE eventId = ?`,
-      [eventId],
-      (err: Error | null, rows: EventUser[]) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(rows)
-        }
-      }
-    )
-  })
+export function getEventUsers(eventId: number, active?: 0 | 1): Promise<EventUser[]> {
+  if (active === undefined) {
+    return getAll('SELECT * FROM EventUser WHERE eventId = ?', [eventId])
+  }
+
+  return getAll('SELECT * FROM EventUser WHERE eventId = ? AND active = ?', [eventId, active])
 }
 
-export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`,
-      [eventId],
-      (err: Error | null, row: Sprint | undefined) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(row)
-        }
-      }
-    )
-  })
+export function getSprint(sprintId: number): Promise<Sprint | undefined> {
+  return getOne(`SELECT * FROM Sprint WHERE id = ?`, [sprintId])
 }
 
 export function createSprint(eventId: number, startDateTime: string): Promise<number> {
@@ -248,7 +253,7 @@ export function updateSprintUser(
 
 export function getSprintUsers(sprintId: number): Promise<SprintUser[]> {
   return new Promise((resolve, reject) => {
-    db.get(
+    db.all(
       `SELECT * FROM SprintUser WHERE sprintId = ?`,
       [sprintId],
       (err: Error | null, rows: SprintUser[]) => {

@@ -4,7 +4,8 @@ import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actio
 import { texts } from '../copy/texts'
 import * as db from '../database'
 import { buttons } from '../copy/buttons'
-import { stringToDateTime } from '../../shared/date'
+import { getToday, stringToDateTime } from '../../shared/date'
+import { sprintFinalWordsHandler } from './shared'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
@@ -69,12 +70,11 @@ async function wordsStartHandler(
     return Promise.reject('EventId is undefined')
   }
 
-  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
+  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getSprint(eventId)])
 
   if (event === undefined) {
     return Promise.reject(`Event is undefined, eventId = ${eventId}`)
   }
-
   if (sprint === undefined) {
     return Promise.reject(`Sprint is undefined, eventId = ${sprint}`)
   }
@@ -82,42 +82,22 @@ async function wordsStartHandler(
   if (event.status === 'finished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
-    await db.createSprintUser(userId, sprint.id, words)
+    await db.updateEventUser(userId, eventId, 1, words)
 
-    // todo different messages depending on if the sprint is started or not
-    await ctx.reply(texts.wordsSet)
-  }
-}
+    const currentMoment = getToday()
+    const sprintStartMoment = stringToDateTime(sprint.startDateTime)
+    const startDiff = currentMoment.diff(sprintStartMoment, 'minutes')
 
-async function wordsEndHandler(
-  ctx: ContextWithSession,
-  words: number,
-  sessionData: EventData
-): Promise<void> {
-  const { id: userId } = ctx.from
-  const { eventId } = sessionData
-  if (eventId === undefined) {
-    return Promise.reject('EventId is undefined')
-  }
-
-  // get SprintUser row and check
-  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
-
-  if (event === undefined) {
-    return Promise.reject(`Event is undefined, eventId = ${eventId}`)
-  }
-
-  if (sprint === undefined) {
-    return Promise.reject(`Sprint is undefined, eventId = ${sprint}`)
-  }
-
-  if (event.status === 'finished') {
-    await ctx.reply(texts.eventIsAlreadyFinished)
-  } else {
-    await db.updateSprintUser(userId, sprint.id, words)
-
-    // todo
-    await ctx.reply(texts.wordsUpdated(100))
+    if (startDiff > 0) {
+      await ctx.reply(texts.wordsSetBeforeStart(startDiff))
+    } else {
+      const minutesLeft = currentMoment.diff(
+        sprintStartMoment.add(event.sprintDuration),
+        'minutes'
+      )
+      // sprint is already started
+      await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
+    }
   }
 }
 
@@ -149,11 +129,11 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessio
     ],
   },
   {
-    type: MeowsTextChainType.SetWordsEnd,
+    type: MeowsTextChainType.SetSprintWords,
     stages: [
       {
         inputType: 'number',
-        handler: wordsEndHandler,
+        handler: sprintFinalWordsHandler,
       },
     ],
   },
