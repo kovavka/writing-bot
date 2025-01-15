@@ -10,9 +10,10 @@ type EnvVariables = {
   TELEGRAM_BOT_TOKEN_PERO: string
   TELEGRAM_BOT_TOKEN_MEOWS: string
   ADMIN_ID: string
+  TEST_CHAT_ID: string
 }
 
-export const { TELEGRAM_BOT_TOKEN_PERO, TELEGRAM_BOT_TOKEN_MEOWS, ADMIN_ID } =
+export const { TELEGRAM_BOT_TOKEN_PERO, TELEGRAM_BOT_TOKEN_MEOWS, ADMIN_ID, TEST_CHAT_ID } =
   process.env as EnvVariables
 
 export const TIME_ZONE = 'Europe/Moscow'

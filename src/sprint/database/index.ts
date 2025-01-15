@@ -1,4 +1,4 @@
-import { Event, Sprint, User } from './types'
+import { Event, EventUser, Sprint, SprintUser, User } from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
 import { EventStatus } from '../types'
@@ -158,6 +158,22 @@ export function updateEventUser(
   })
 }
 
+export function getEventUsers(eventId: number): Promise<EventUser[]> {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM EventUser WHERE eventId = ?`,
+      [eventId],
+      (err: Error | null, rows: EventUser[]) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(rows)
+        }
+      }
+    )
+  })
+}
+
 export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
   return new Promise((resolve, reject) => {
     db.get(
@@ -224,6 +240,22 @@ export function updateSprintUser(
           reject(err)
         } else {
           resolve()
+        }
+      }
+    )
+  })
+}
+
+export function getSprintUsers(sprintId: number): Promise<SprintUser[]> {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM SprintUser WHERE sprintId = ?`,
+      [sprintId],
+      (err: Error | null, rows: SprintUser[]) => {
+        if (err) {
+          reject(err)
+        } else {
+          resolve(rows)
         }
       }
     )

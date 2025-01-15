@@ -20,8 +20,4 @@ export const buttons = {
     text: 'Присоединиться',
     callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
   }),
-  setWordsEnd: (eventId: number): ButtonType => ({
-    text: 'Ввести результат',
-    callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
-  }),
 }

@@ -5,11 +5,11 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { Event } from '../database/types'
 import { stringToDateTime } from '../../shared/date'
-import { ADMIN_ID } from '../../shared/variables'
+import { DATE_TIME_FORMAT } from '../../shared/variables'
 import { InlineKeyboardButton } from '../../shared/copy/types'
 import { buttons } from '../copy/buttons'
-import moment, { Moment } from 'moment-timezone'
-import { executeAtTime } from '../time-utils'
+import { Moment } from 'moment-timezone'
+import { delayUntil } from '../time-utils'
 import { createSprint } from '../database'
 import { EventData } from './chains'
 
@@ -24,31 +24,56 @@ function saveEventId(ctx: ContextWithSession, eventId: number): void {
   }
 }
 
-async function runSprint(
+async function startEvent(
   event: Event,
-  sprintStart: Moment,
-  userIds: number[],
   sendMessage: SendMessageType<MeowsQueryActionType>
 ): Promise<void> {
-  await executeAtTime(sprintStart, () => {
-    sendMessage(
-      // todo userIds,
-      [Number(ADMIN_ID)],
-      texts.sprintStarted(event.sprintDuration),
-      []
-    )
-  })
+  const eventStartMoment = stringToDateTime(event.startDateTime)
+  const registeredUserIds = (await db.getEventUsers(event.id)).map(x => x.userId)
 
-  await executeAtTime(sprintStart.add('30', 'seconds'), () => {
-    sendMessage(
-      // todo userIds,
-      [Number(ADMIN_ID)],
-      texts.sprintFinished,
-      [buttons.setWordsEnd(event.id)]
-    )
-  })
+  // const joinNotificationMoment = eventStartMoment.subtract('5', 'minutes')
+  const joinNotificationMoment = eventStartMoment.subtract('30', 'seconds')
 
-  // todo create new sprint
+  await delayUntil(joinNotificationMoment)
+
+  const firstSprintId = await createSprint(event.id, event.startDateTime)
+
+  await sendMessage(
+    // todo change to registeredUsers
+    registeredUserIds,
+    texts.eventStarted,
+    [buttons.joinEvent(event.id)]
+  )
+
+  let sprintId = firstSprintId
+  let sprintStartMoment = eventStartMoment
+  for (let i = 0; i < event.sprintsNumber; i++) {
+    await runSprint(sprintId, event.sprintDuration, sprintStartMoment, sendMessage)
+
+    if (i < event.sprintsNumber - 1) {
+      const breakDuration = i % 3 === 2 ? 15 : 5
+      sprintStartMoment = sprintStartMoment.add(breakDuration, 'minutes')
+      sprintId = await createSprint(event.id, sprintStartMoment.format(DATE_TIME_FORMAT))
+    }
+  }
+}
+
+async function runSprint(
+  sprintId: number,
+  sprintDuration: number,
+  sprintStartMoment: Moment,
+  sendMessage: SendMessageType<MeowsQueryActionType>
+): Promise<void> {
+  await delayUntil(sprintStartMoment)
+  const joinedUserIds = (await db.getSprintUsers(sprintId)).map(x => x.userId)
+
+  await sendMessage(joinedUserIds, texts.sprintStarted(sprintDuration), [])
+
+  await delayUntil(sprintStartMoment.add(sprintDuration, 'minutes'))
+  // in case someone joined after the sprint started
+  const nextJoinedUserIds = (await db.getSprintUsers(sprintId)).map(x => x.userId)
+
+  await sendMessage(nextJoinedUserIds, texts.sprintFinished, [])
 }
 
 async function openEventHandler(
@@ -72,27 +97,10 @@ async function openEventHandler(
   const date = stringToDateTime(event.startDateTime)
   const userIds = users.map(x => x.id)
 
-  await sendMessage(
-    // todo userIds,
-    [Number(ADMIN_ID)],
-    texts.registrationOpened(date),
-    [buttons.register(eventId)]
-  )
+  await sendMessage(userIds, texts.registrationOpened(date), [buttons.register(eventId)])
 
-  await createSprint(eventId, event.startDateTime)
-
-  const runAt = moment().add('10', 'second')
-
-  executeAtTime(runAt, () => {
-    // todo send to only registered users
-    sendMessage(
-      // todo userIds,
-      [Number(ADMIN_ID)],
-      texts.eventStarted,
-      [buttons.joinEvent(eventId)]
-    )
-    runSprint(event, runAt.add('10', 'seconds'), userIds, sendMessage)
-  })
+  // should run in background, never use await here
+  startEvent(event, sendMessage)
 
   await db.updateEventStatus(eventId, 'open')
   await ctx.reply(texts.eventOpened)
