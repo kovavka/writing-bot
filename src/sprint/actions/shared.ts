@@ -4,6 +4,7 @@ import * as db from '../database'
 import { texts } from '../copy/texts'
 import { TIME_FORMAT_OUTPUT } from '../../shared/variables'
 import { errors } from '../copy/errors'
+import { buttons } from '../copy/buttons'
 
 export async function sprintFinalWordsHandler(
   ctx: ContextWithSession,
@@ -38,7 +39,13 @@ export async function sprintFinalWordsHandler(
   if (event.status === 'finished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
-    await db.updateSprintUser(userId, sprintId, words)
+    const sprintUser = await db.getSprintUser(userId, sprintId)
+
+    if (sprintUser === undefined) {
+      await db.createSprintUser(userId, sprintId, words)
+    } else {
+      await db.updateSprintUser(userId, sprintId, words)
+    }
     // todo compare with prev sprint
     const wordsDiff = words - (eventUser.startWords ?? 0)
 
@@ -47,7 +54,16 @@ export async function sprintFinalWordsHandler(
       await ctx.reply(texts.wordsUpdatedLastSprint(wordsDiff))
     } else {
       await ctx.reply(
-        texts.wordsUpdated(wordsDiff, breakDuration, nextSprintStart.format(TIME_FORMAT_OUTPUT))
+        texts.wordsUpdated(
+          wordsDiff,
+          breakDuration,
+          nextSprintStart.format(TIME_FORMAT_OUTPUT)
+        ),
+        {
+          reply_markup: {
+            inline_keyboard: [[buttons.leaveEvent(eventId)]],
+          },
+        }
       )
     }
   }

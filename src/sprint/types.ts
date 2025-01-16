@@ -9,6 +9,7 @@ export enum MeowsQueryActionType {
   JoinEvent = 'join_event',
   LeaveEvent = 'leave_event',
   RejoinEvent = 'rejoin_event',
+  Statistics = 'statistics',
 }
 
 export type EventStatus = 'created' | 'open' | 'started' | 'finished'

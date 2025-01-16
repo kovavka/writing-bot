@@ -56,7 +56,7 @@ async function runSprint(
 
   // in case someone joined after the sprint started
   const nextActiveUserIds = (await db.getEventUsers(eventId, 1)).map(x => x.userId)
-  await sendMessage(nextActiveUserIds, texts.sprintFinished, [buttons.leaveEvent(eventId)])
+  await sendMessage(nextActiveUserIds, texts.sprintFinished, [])
 }
 
 async function startEvent(
@@ -202,6 +202,19 @@ async function rejoinEventHandler(
   // await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
 }
 
+async function eventStatisticsEventHandler(
+  ctx: ContextWithSession<CallbackQueryContext>,
+  eventIdStr: string
+): Promise<void> {
+  const eventId = Number(eventIdStr)
+  const { id: userId } = ctx.from
+
+  await db.updateEventUser(userId, eventId, 1)
+
+  // todo reply with current state
+  // await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
+}
+
 export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[] = [
   {
     type: MeowsQueryActionType.CreateEvent,
@@ -224,6 +237,10 @@ export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[
   {
     type: MeowsQueryActionType.RejoinEvent,
     handler: rejoinEventHandler,
+  },
+  {
+    type: MeowsQueryActionType.Statistics,
+    handler: eventStatisticsEventHandler,
   },
   // todo restart current sprint timer
 ]
