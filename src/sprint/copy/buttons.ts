@@ -9,15 +9,19 @@ export const buttons = {
     callback_data: MeowsQueryActionType.CreateEvent,
   },
   openEvent: (eventId: number): ButtonType => ({
-    text: 'Открыть регистрацию',
+    text: 'Оповестить',
     callback_data: `${MeowsQueryActionType.OpenEvent}_${eventId}`,
-  }),
-  register: (eventId: number): ButtonType => ({
-    text: 'Участвовать',
-    callback_data: `${MeowsQueryActionType.Register}_${eventId}`,
   }),
   joinEvent: (eventId: number): ButtonType => ({
     text: 'Присоединиться',
     callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
+  }),
+  leaveEvent: (eventId: number): ButtonType => ({
+    text: 'Выйти',
+    callback_data: `${MeowsQueryActionType.LeaveEvent}_${eventId}`,
+  }),
+  rejoinEvent: (eventId: number): ButtonType => ({
+    text: 'Вернуться',
+    callback_data: `${MeowsQueryActionType.RejoinEvent}_${eventId}`,
   }),
 }

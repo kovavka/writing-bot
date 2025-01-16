@@ -23,9 +23,9 @@ function getAll<T>(sql: string, params: unknown[]): Promise<T[]> {
   })
 }
 
-function getOne<T>(sql: string, params: unknown[]): Promise<T> {
+function getOne<T>(sql: string, params: unknown[]): Promise<T | undefined> {
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err: Error | null, row: T) => {
+    db.get(sql, params, (err: Error | null, row: T) => {
       if (err) {
         reject(err)
       } else {
@@ -146,11 +146,15 @@ export function updateEventStatus(id: number, status: EventStatus): Promise<void
   })
 }
 
-export function createEventUser(userId: number, eventId: number): Promise<void> {
+export function createEventUser(
+  userId: number,
+  eventId: number,
+  active?: 0 | 1
+): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO EventUser (userId, eventId) VALUES (?, ?)`,
-      [userId, eventId],
+      `INSERT INTO EventUser (userId, eventId, active) VALUES (?, ?, ?)`,
+      [userId, eventId, active],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -191,8 +195,18 @@ export function getEventUsers(eventId: number, active?: 0 | 1): Promise<EventUse
   return getAll('SELECT * FROM EventUser WHERE eventId = ? AND active = ?', [eventId, active])
 }
 
+export function getEventUser(userId: number, eventId: number): Promise<EventUser | undefined> {
+  return getOne('SELECT * FROM EventUser WHERE eventId = ? AND userId = ?', [eventId, userId])
+}
+
 export function getSprint(sprintId: number): Promise<Sprint | undefined> {
   return getOne(`SELECT * FROM Sprint WHERE id = ?`, [sprintId])
+}
+
+export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
+  return getOne(`SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`, [
+    eventId,
+  ])
 }
 
 export function createSprint(eventId: number, startDateTime: string): Promise<number> {
@@ -234,12 +248,12 @@ export function createSprintUser(
 export function updateSprintUser(
   userId: number,
   sprintId: number,
-  wordsEnd: number
+  finalWords: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE SprintUser SET wordsEnd = ? WHERE userId = ? AND sprintId = ?`,
-      [userId, sprintId, wordsEnd],
+      `UPDATE SprintUser SET finalWords = ? WHERE userId = ? AND sprintId = ?`,
+      [finalWords, userId, sprintId],
       (err: Error | null) => {
         if (err) {
           reject(err)

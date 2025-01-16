@@ -46,21 +46,10 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   private async sendMessage(
     userIds: number[],
     text: string,
-    buttons: InlineKeyboardButton<QueryType>[],
-    nextChain?: ChainType
+    buttons: InlineKeyboardButton<QueryType>[]
   ): Promise<void> {
     for (const userId of userIds) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const botContext = initSession(this.bot.context as any)
-        botContext.session[userId] = {
-          ...(botContext.session[userId] ?? {}),
-          type: nextChain,
-          stageIndex: 0,
-        }
-
-        console.log(nextChain)
-
         await this.bot.telegram.sendMessage(
           userId,
           text,
@@ -195,7 +184,8 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   // public for tests only
   async textInputHandler<SessionData extends TextChainSessionData<ChainType>>(
     ctx: TextMessageContext,
-    chainActions: BotTextChainAction<ChainType, SessionData>[]
+    chainActions: BotTextChainAction<ChainType, SessionData>[],
+    fallback?: (ctx: TextMessageContext) => Promise<void>
   ): Promise<void> {
     try {
       const { id: userId } = ctx.from
@@ -205,7 +195,11 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
       const sessionData = sessionContext.session[userId] as SessionData
 
       if (sessionData == null || sessionData.type == null || sessionData.stageIndex == null) {
-        await ctx.reply(this.errors.unknownCommand)
+        if (fallback) {
+          await fallback(ctx)
+        } else {
+          await ctx.reply(this.errors.unknownCommand)
+        }
         return
       }
 
@@ -222,10 +216,11 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   }
 
   setChainActions<SessionData extends TextChainSessionData<ChainType>>(
-    chainActions: BotTextChainAction<ChainType, SessionData>[]
+    chainActions: BotTextChainAction<ChainType, SessionData>[],
+    fallback?: (ctx: TextMessageContext) => Promise<void>
   ): WritingBot<QueryType, ChainType> {
     this.bot.on('text', async ctx => {
-      await this.textInputHandler(ctx, chainActions)
+      await this.textInputHandler(ctx, chainActions, fallback)
     })
     return this
   }

@@ -3,6 +3,7 @@ import { globalSession } from '../event-data'
 import * as db from '../database'
 import { texts } from '../copy/texts'
 import { TIME_FORMAT_OUTPUT } from '../../shared/variables'
+import { errors } from '../copy/errors'
 
 export async function sprintFinalWordsHandler(
   ctx: ContextWithSession,
@@ -15,7 +16,16 @@ export async function sprintFinalWordsHandler(
   const { eventId, sprintId, sprintNumber, breakDuration, nextSprintStart } =
     globalSession.eventData
 
-  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getSprint(sprintId)])
+  const [event, sprint, eventUser] = await Promise.all([
+    db.getEvent(eventId),
+    db.getSprint(sprintId),
+    db.getEventUser(userId, eventId),
+  ])
+
+  if (eventUser === undefined) {
+    await ctx.reply(errors.unknownCommand)
+    return
+  }
 
   if (event === undefined) {
     return Promise.reject(`Event is undefined, eventId = ${eventId}`)
@@ -29,13 +39,15 @@ export async function sprintFinalWordsHandler(
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
     await db.updateSprintUser(userId, sprintId, words)
+    // todo compare with prev sprint
+    const wordsDiff = words - (eventUser.startWords ?? 0)
 
     if (sprintNumber === event.sprintsNumber) {
       // last sprint
-      await ctx.reply(texts.wordsUpdatedLastSprint(words))
+      await ctx.reply(texts.wordsUpdatedLastSprint(wordsDiff))
     } else {
       await ctx.reply(
-        texts.wordsUpdated(words, breakDuration, nextSprintStart.format(TIME_FORMAT_OUTPUT))
+        texts.wordsUpdated(wordsDiff, breakDuration, nextSprintStart.format(TIME_FORMAT_OUTPUT))
       )
     }
   }

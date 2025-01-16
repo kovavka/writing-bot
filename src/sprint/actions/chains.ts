@@ -5,7 +5,6 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { buttons } from '../copy/buttons'
 import { getToday, stringToDateTime } from '../../shared/date'
-import { sprintFinalWordsHandler } from './shared'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
@@ -70,13 +69,13 @@ async function wordsStartHandler(
     return Promise.reject('EventId is undefined')
   }
 
-  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getSprint(eventId)])
+  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
 
   if (event === undefined) {
     return Promise.reject(`Event is undefined, eventId = ${eventId}`)
   }
   if (sprint === undefined) {
-    return Promise.reject(`Sprint is undefined, eventId = ${sprint}`)
+    return Promise.reject(`Sprint is undefined, eventId = ${eventId}`)
   }
 
   if (event.status === 'finished') {
@@ -86,16 +85,14 @@ async function wordsStartHandler(
 
     const currentMoment = getToday()
     const sprintStartMoment = stringToDateTime(sprint.startDateTime)
-    const startDiff = currentMoment.diff(sprintStartMoment, 'minutes')
+    const minutesToStart = sprintStartMoment.diff(currentMoment, 'minutes')
 
-    if (startDiff > 0) {
-      await ctx.reply(texts.wordsSetBeforeStart(startDiff))
+    if (minutesToStart >= 0) {
+      await ctx.reply(texts.wordsSetBeforeStart(minutesToStart))
     } else {
-      const minutesLeft = currentMoment.diff(
-        sprintStartMoment.add(event.sprintDuration),
-        'minutes'
-      )
       // sprint is already started
+      const sprintEndMoment = sprintStartMoment.clone().add(event.sprintDuration)
+      const minutesLeft = sprintEndMoment.diff(currentMoment, 'minutes')
       await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
     }
   }
@@ -125,15 +122,6 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessio
       {
         inputType: 'number',
         handler: wordsStartHandler,
-      },
-    ],
-  },
-  {
-    type: MeowsTextChainType.SetSprintWords,
-    stages: [
-      {
-        inputType: 'number',
-        handler: sprintFinalWordsHandler,
       },
     ],
   },
