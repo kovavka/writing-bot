@@ -5,6 +5,8 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { buttons } from '../copy/buttons'
 import { getToday, stringToDateTime } from '../../shared/date'
+import { GlobalSession } from '../global-session'
+import { errors } from '../copy/errors'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
@@ -58,43 +60,40 @@ async function eventSprintDurationHandler(
   })
 }
 
-async function wordsStartHandler(
-  ctx: ContextWithSession,
-  words: number,
-  sessionData: EventData
-): Promise<void> {
+async function wordsStartHandler(ctx: ContextWithSession, words: number): Promise<void> {
   const { id: userId } = ctx.from
-  const { eventId } = sessionData
-  if (eventId === undefined) {
-    return Promise.reject('EventId is undefined')
+
+  if (GlobalSession.instance.eventData === undefined) {
+    await ctx.reply(errors.unknownCommand)
+    return
   }
 
-  const [event, sprint] = await Promise.all([db.getEvent(eventId), db.getLatestSprint(eventId)])
+  const { eventStatus } = GlobalSession.instance.eventData
 
-  if (event === undefined) {
-    return Promise.reject(`Event is undefined, eventId = ${eventId}`)
-  }
-  if (sprint === undefined) {
-    return Promise.reject(`Sprint is undefined, eventId = ${eventId}`)
-  }
-
-  if (event.status === 'finished') {
+  if (eventStatus === 'finished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+  const { eventId, isBreak, sprintIndex } = GlobalSession.instance.eventData
+  const currentSprint = GlobalSession.instance.eventData.sprints[sprintIndex]
+
+  GlobalSession.instance.eventData.participants[userId] = {
+    startWords: words,
+    active: true,
+  }
+
+  db.updateEventUser(userId, eventId, 1, words).catch((err: unknown) =>
+    GlobalSession.instance.sendError(err)
+  )
+  const currentMoment = getToday()
+
+  if (isBreak) {
+    const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
+    await ctx.reply(texts.wordsSetBeforeStart(minutesToStart))
   } else {
-    await db.updateEventUser(userId, eventId, 1, words)
-
-    const currentMoment = getToday()
-    const sprintStartMoment = stringToDateTime(sprint.startDateTime)
-    const minutesToStart = sprintStartMoment.diff(currentMoment, 'minutes')
-
-    if (minutesToStart >= 0) {
-      await ctx.reply(texts.wordsSetBeforeStart(minutesToStart))
-    } else {
-      // sprint is already started
-      const sprintEndMoment = sprintStartMoment.clone().add(event.sprintDuration)
-      const minutesLeft = sprintEndMoment.diff(currentMoment, 'minutes')
-      await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
-    }
+    // sprint is already started
+    const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
+    await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
   }
 }
 

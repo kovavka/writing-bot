@@ -29,10 +29,16 @@ export const texts = {
     `Замурчательно! Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
   sprintStarted: (sprintNumber: number, minutesLeft: number, endTime: string): string =>
     `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime} МСК)`,
-  sprintFinished: `Спринт закончился. Скажи, сколько слов теперь в твоём гримуаре?`,
-  wordsUpdated: (wordsDiff: number, breakDuration: number, startTime: string): string =>
-    `Отличная работа! Ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}
-Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${startTime} МСК).\n
+  sprintFinished: (
+    breakDuration: number,
+    startTime: string
+  ): string => `Спринт закончился. Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${startTime} МСК).\n
+A пока скажи, сколько слов теперь в твоём гримуаре?`,
+  sprintFinishedLast: `Спринт закончился. Следующий спринт начнётся через. Скажи, сколько слов теперь в твоём гримуаре?`,
+  sprintResult: (sprintNumber: number, data: string): string =>
+    `Результат спринта #${sprintNumber}:\n${data}`,
+  wordsUpdated: (wordsDiff: number): string =>
+    `Отличная работа! Ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}.\n
 Нажми "Выйти", если пока не хочешь продолжать. Ты сможешь вернуться в любой мемент, пока идёт событие`,
   wordsUpdatedLastSprint: (wordsDiff: number): string =>
     `Отличная работа! Ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}.

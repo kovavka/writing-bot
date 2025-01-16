@@ -9,7 +9,7 @@ import { errors } from './copy/errors'
 import { commands } from './actions/commands'
 import { Telegraf } from 'telegraf'
 import { initSession, isValidNumber } from '../shared/bot/utils'
-import { globalSession } from './event-data'
+import { GlobalSession } from './global-session'
 import { sprintFinalWordsHandler } from './actions/shared'
 
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_MEOWS)
@@ -18,19 +18,20 @@ async function startHandler(ctx: SimpleContext): Promise<void> {
   initSession(ctx)
   const { id: userId, first_name, last_name } = ctx.from
 
-  const user = await db.getUser(userId)
+  const user = GlobalSession.instance.users.find(x => x.id === userId)
   if (user == null) {
-    await db.addUser(userId, `${first_name} ${last_name}`)
-
+    GlobalSession.instance.addUser(userId, `${first_name} ${last_name}`)
     await ctx.reply(texts.welcome)
   } else {
-    // add settings
+    // todo add settings
     await ctx.reply(texts.welcomeBack(user.name))
   }
+
+  // todo send current event
 }
 
 async function textInputFallback(ctx: TextMessageContext): Promise<void> {
-  if (globalSession.eventData === undefined) {
+  if (GlobalSession.instance.eventData === undefined) {
     await ctx.reply(errors.unknownCommand)
   } else {
     const userInput = ctx.message.text
@@ -49,11 +50,15 @@ new WritingBot(bot, errors)
   .setQueries(queryMap)
   .setChainActions(textInputCommands, textInputFallback)
 
-// get event & sprint
-// eventData = {}
+async function launch(): Promise<void> {
+  // todo add init event to queries
+  const users = await db.getAllUsers()
+  GlobalSession.init(bot, users, undefined)
+  await bot.launch()
+  console.log('Meows is running...')
+}
 
-bot.launch()
-console.log('Meows is running...')
+launch()
 
 process.on('SIGINT', () => {
   db.close()

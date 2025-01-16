@@ -5,15 +5,17 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { Event } from '../database/types'
 import { getToday, stringToDateTime } from '../../shared/date'
-import { DATE_TIME_FORMAT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
+import { ADMIN_ID, DATE_TIME_FORMAT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
 import { InlineKeyboardButton } from '../../shared/copy/types'
 import { buttons } from '../copy/buttons'
 import { Moment } from 'moment-timezone'
 import { delayUntil } from '../time-utils'
 import { EventData } from './chains'
-import { globalSession } from '../event-data'
+import { GlobalSession } from '../global-session'
 import { DEFAULT_BREAK_DURATION, LONGER_BREAK_DURATION } from '../variables'
 import { startNewChain } from '../../shared/bot/utils'
+import { errors } from '../copy/errors'
+import { delay } from '../../shared/delay'
 
 async function createEventHandler(ctx: ContextWithSession): Promise<void> {
   await ctx.reply(texts.setEventDateTime)
@@ -26,37 +28,33 @@ function saveEventId(ctx: ContextWithSession, eventId: number): void {
   }
 }
 
+// todo make sure this thing stops after stopping the process
 async function runSprint(
   eventId: number,
-  sprintNumber: number,
+  sprintIndex: number,
   sprintDuration: number,
   sprintStartMoment: Moment,
+  sprintEndMoment: Moment,
   sendMessage: SendMessageType<MeowsQueryActionType>
 ): Promise<void> {
   await delayUntil(sprintStartMoment)
 
-  globalSession.eventData!.status = 'sprint'
-
-  const sprintEndMoment = sprintStartMoment.clone().add(sprintDuration, 'minutes')
+  // sprint started
+  GlobalSession.instance.eventData!.sprintIndex = sprintIndex
+  GlobalSession.instance.eventData!.isBreak = false
 
   const activeUserIds = (await db.getEventUsers(eventId, 1)).map(x => x.userId)
   await sendMessage(
     activeUserIds,
     texts.sprintStarted(
-      sprintNumber,
+      sprintIndex + 1,
       sprintDuration,
       sprintEndMoment.format(TIME_FORMAT_OUTPUT)
     ),
     []
   )
 
-  globalSession.eventData!.status = 'sprint'
-
   await delayUntil(sprintEndMoment)
-
-  // in case someone joined after the sprint started
-  const nextActiveUserIds = (await db.getEventUsers(eventId, 1)).map(x => x.userId)
-  await sendMessage(nextActiveUserIds, texts.sprintFinished, [])
 }
 
 async function startEvent(
@@ -71,6 +69,16 @@ async function startEvent(
     db.updateEventStatus(event.id, 'started'),
   ])
 
+  GlobalSession.instance.eventData = {
+    eventId: event.id,
+    eventStatus: 'started',
+    sprintsNumber: event.sprintsNumber,
+    sprintIndex: 0,
+    isBreak: true,
+    sprints: [],
+    participants: [],
+  }
+
   const minutesLeft = eventStartMoment.diff(getToday(), 'minutes')
 
   await sendMessage(
@@ -83,36 +91,51 @@ async function startEvent(
   let sprintId = firstSprintId
   for (let i = 0; i < event.sprintsNumber; i++) {
     const breakDuration = i % 3 === 2 ? LONGER_BREAK_DURATION : DEFAULT_BREAK_DURATION
-    const nextSprintStartMoment = sprintStartMoment
-      .clone()
-      .add(event.sprintDuration, 'minutes')
-      .add(breakDuration, 'minutes')
+    const sprintEndMoment = sprintStartMoment.clone().add(event.sprintDuration, 'minutes')
 
-    const sprintNumber = i + 1
-
-    // todo fix sprintNumber
-    globalSession.eventData = {
-      eventId: event.id,
-      sprintId,
-      sprintNumber,
-      status: 'break',
-      breakDuration,
-      nextSprintStart: nextSprintStartMoment,
-    }
+    GlobalSession.instance.eventData!.sprints.push({
+      id: sprintId,
+      startMoment: sprintStartMoment,
+      endMoment: sprintEndMoment,
+      results: {},
+      breakDuration: breakDuration,
+    })
 
     await runSprint(
       event.id,
-      sprintNumber,
+      i,
       event.sprintDuration,
       sprintStartMoment,
+      sprintEndMoment,
       sendMessage
     )
 
+    // sprint just finished
+    GlobalSession.instance.eventData!.isBreak = true
+
+    // getting users again in case someone joined after the sprint started
+    const nextActiveUserIds = (await db.getEventUsers(event.id, 1)).map(x => x.userId)
+
     const isLastSprint = i === event.sprintsNumber - 1
-    if (!isLastSprint) {
-      sprintStartMoment = nextSprintStartMoment
+    if (isLastSprint) {
+      await sendMessage(nextActiveUserIds, texts.sprintFinishedLast, [])
+    } else {
+      sprintStartMoment = sprintEndMoment.clone().add(breakDuration, 'minutes')
       sprintId = await db.createSprint(event.id, sprintStartMoment.format(DATE_TIME_FORMAT))
+      await sendMessage(
+        nextActiveUserIds,
+        texts.sprintFinished(breakDuration, sprintStartMoment.format(TIME_FORMAT_OUTPUT)),
+        []
+      )
     }
+
+    await delay(1000 * 60)
+
+    await sendMessage(
+      [Number(ADMIN_ID)],
+      `data: ${JSON.stringify(GlobalSession.instance.eventData!.sprints[i].results)}`,
+      []
+    )
   }
 }
 
@@ -144,7 +167,6 @@ async function openEventHandler(
   // should run in background, never use await here
   startEvent(event, sendMessage)
 
-  await db.updateEventStatus(eventId, 'open')
   await ctx.reply(texts.adminEventOpened)
 }
 
@@ -181,6 +203,15 @@ async function leaveEventHandler(
   const eventId = Number(eventIdStr)
   const { id: userId } = ctx.from
 
+  const participant = GlobalSession.instance.eventData?.participants?.[eventId]
+
+  if (participant === undefined) {
+    await ctx.reply(errors.unknownCommand)
+    return
+  }
+
+  participant.active = false
+
   await db.updateEventUser(userId, eventId, 0)
   await ctx.reply(texts.eventLeft, {
     reply_markup: {
@@ -195,6 +226,15 @@ async function rejoinEventHandler(
 ): Promise<void> {
   const eventId = Number(eventIdStr)
   const { id: userId } = ctx.from
+
+  const participant = GlobalSession.instance.eventData?.participants?.[eventId]
+
+  if (participant === undefined) {
+    await ctx.reply(errors.unknownCommand)
+    return
+  }
+
+  participant.active = true
 
   await db.updateEventUser(userId, eventId, 1)
 
