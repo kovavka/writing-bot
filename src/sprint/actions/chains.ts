@@ -22,6 +22,7 @@ export type EventData = BaseSessionData & {
 
 export type AnySessionData = EventData | CreateEventChainData | BaseSessionData
 
+// todo add custom input validation
 async function eventDateTimeHandler(
   ctx: ContextWithSession,
   startDateTime: string,

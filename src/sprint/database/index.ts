@@ -35,6 +35,18 @@ function getOne<T>(sql: string, params: unknown[]): Promise<T | undefined> {
   })
 }
 
+function update(sql: string, params: unknown[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, (err: Error | null) => {
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
+    })
+  })
+}
+
 export function close(): void {
   db.close((err: Error | null) => {
     if (err) {
@@ -145,8 +157,8 @@ export function createEventUser(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO EventUser (userId, eventId, active) VALUES (?, ?, ?)`,
-      [userId, eventId, active],
+      `INSERT INTO EventUser (userId, eventId, active, startWords) VALUES (?, ?, ?, ?)`,
+      [userId, eventId, active, 0],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -161,22 +173,21 @@ export function createEventUser(
 export function updateEventUser(
   userId: number,
   eventId: number,
-  active?: 0 | 1,
+  active: 0 | 1,
   startWords?: number
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `UPDATE EventUser SET active = ?, startWords = ? WHERE userId = ? AND eventId = ?`,
-      [active, startWords, userId, eventId],
-      (err: Error | null) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve()
-        }
-      }
-    )
-  })
+  if (startWords === undefined) {
+    return update(`UPDATE EventUser SET active = ? WHERE userId = ? AND eventId = ?`, [
+      active,
+      userId,
+      eventId,
+    ])
+  }
+
+  return update(
+    `UPDATE EventUser SET active = ?, startWords = ? WHERE userId = ? AND eventId = ?`,
+    [active, startWords, userId, eventId]
+  )
 }
 
 export function getEventUsers(eventId: number, active?: 0 | 1): Promise<EventUser[]> {
@@ -197,15 +208,8 @@ export function getEventUser(userId: number, eventId: number): Promise<EventUser
   ])
 }
 
-export function getSprint(sprintId: number): Promise<Sprint | undefined> {
-  return getOne<Sprint>(`SELECT * FROM Sprint WHERE id = ?`, [sprintId])
-}
-
-export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
-  return getOne<Sprint>(
-    `SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`,
-    [eventId]
-  )
+export function getAllSprints(eventId: number): Promise<Sprint[]> {
+  return getAll<Sprint>(`SELECT * FROM Sprint WHERE eventId = ?`, [eventId])
 }
 
 export function createSprint(eventId: number, startDateTime: string): Promise<number> {
@@ -292,13 +296,13 @@ export function getSprintUsers(sprintId: number): Promise<SprintUser[]> {
   })
 }
 
-// todo startWords from SprintUser
 export function getEventStat(eventId: number): Promise<EventStatData[]> {
   return getAll<EventStatData>(
     `
 SELECT
     user.id AS userId,
     user.name AS userName,
+    sprintUser.sprintId AS sprintId,
     sprintUser.startWords,
     sprintUser.finalWords
 FROM EventUser eventUser

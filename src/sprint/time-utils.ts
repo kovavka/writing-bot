@@ -9,3 +9,7 @@ export async function delayUntil(endTime: Moment): Promise<void> {
   const secondsLeft = endTime.diff(moment(), 'second')
   await delay(1000 * secondsLeft)
 }
+
+export function formatTimeToMinutes(time: Moment): string {
+  return `⏳:${time.format('mm')}`
+}

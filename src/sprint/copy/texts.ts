@@ -3,11 +3,9 @@ import { forms } from '../../shared/copy/forms'
 import { DATE_FORMAT_OUTPUT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
 import { Moment } from 'moment-timezone'
 
-// todo add number of sprints in the notification
 export const texts = {
   help: 'Мурмур! Я Мяуз, самый пунктуальный из фамильяров. Буду помогать тебе следить за временем, пока ты пишешь',
-  welcome:
-    'Добро пожалать, ведьмочка! Я Мяуз, самый пунктуальный из фамильяров. Буду помогать тебе следить за временем, пока ты пишешь',
+  welcome: 'Добро пожалать, ведьмочка! Я Мяуз, самый пунктуальный из фамильяров.',
   welcomeBack: (name: string): string => `С возвращением, ${name}!`,
   status: 'Мурр, я здесь, ведьмочка',
   admin: 'Вот список доступных команд для админа',
@@ -21,6 +19,12 @@ export const texts = {
   eventStartingSoon: (minutesLeft: number, startTime: string): string =>
     `Первый спринт начнётся уже через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)} (в ${startTime} МСК). Ты можешь присоединиться сейчас, либо в любой момент, пока идёт событие`,
   alreadyJoined: 'Ты уже присоединилась к событию, ведьмочка',
+  noEvent: (welcomeText: string): string =>
+    `${welcomeText}\n
+Сейчас мы не проводим событие, но я обязательно напишу тебе о следующем`,
+  eventIsRunning: (welcomeText: string): string =>
+    `${welcomeText}\n
+Сегодня мы проводим событие. Не хочешь присоединиться?`,
   setWordsStart:
     'Напиши, сколько слов у тебя уже есть. Если хочешь начать с чистого листа, пиши 0',
   rejoin: `Рад, что ты вернулась!`,

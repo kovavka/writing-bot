@@ -36,6 +36,7 @@ export type SprintUser = {
 export type EventStatData = {
   userId: number
   userName: string
+  sprintId: number
   startWords: number
   finalWords: number
 }

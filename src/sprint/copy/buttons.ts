@@ -16,6 +16,10 @@ export const buttons = {
     text: 'Статистика',
     callback_data: `${MeowsQueryActionType.EventStat}_${eventId}`,
   }),
+  startLatestSprint: (eventId: number): ButtonType => ({
+    text: 'Запустить спринт',
+    callback_data: `${MeowsQueryActionType.StartLatestSprint}_${eventId}`,
+  }),
   finishEvent: (eventId: number): ButtonType => ({
     text: 'Завершить',
     callback_data: `${MeowsQueryActionType.FinishEvent}_${eventId}`,

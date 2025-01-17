@@ -11,6 +11,7 @@ import { Telegraf } from 'telegraf'
 import { initSession, isValidNumber } from '../shared/bot/utils'
 import { GlobalSession } from './global-session'
 import { sprintFinalWordsHandler } from './actions/shared'
+import { buttons } from './copy/buttons'
 
 const bot = new Telegraf(TELEGRAM_BOT_TOKEN_MEOWS)
 
@@ -18,16 +19,32 @@ async function startHandler(ctx: SimpleContext): Promise<void> {
   initSession(ctx)
   const { id: userId, first_name, last_name } = ctx.from
 
+  let welcomeText = ''
+
   const user = GlobalSession.instance.users.find(x => x.id === userId)
   if (user == null) {
     GlobalSession.instance.addUser(userId, `${first_name} ${last_name}`)
-    await ctx.reply(texts.welcome)
+    welcomeText = texts.welcome
   } else {
     // todo add settings
-    await ctx.reply(texts.welcomeBack(user.name))
+    welcomeText = texts.welcomeBack(user.name)
   }
 
-  // todo send current event
+  const eventData = GlobalSession.instance.eventData
+  if (eventData !== undefined) {
+    if (eventData.participants[userId] === undefined) {
+      await ctx.reply(texts.eventIsRunning(welcomeText), {
+        reply_markup: {
+          inline_keyboard: [[buttons.joinEvent(eventData.eventId)]],
+        },
+      })
+    } else {
+      // rare case when user joined the event, banned the bot and then started again
+      await ctx.reply(welcomeText)
+    }
+  } else {
+    await ctx.reply(texts.noEvent(welcomeText))
+  }
 }
 
 async function textInputFallback(ctx: TextMessageContext): Promise<void> {
@@ -51,7 +68,6 @@ new WritingBot(bot, errors)
   .setChainActions(textInputCommands, textInputFallback)
 
 async function launch(): Promise<void> {
-  // todo add init event to queries
   const users = await db.getAllUsers()
   GlobalSession.init(bot, users, undefined)
   await bot.launch()

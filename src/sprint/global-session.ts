@@ -6,20 +6,24 @@ import { ADMIN_ID } from '../shared/variables'
 import { Context, Telegraf } from 'telegraf'
 import { Update } from 'telegraf/typings/core/types/typegram'
 
+export type SprintResultData = {
+  startWords: number
+  finalWords: number
+  diff: number
+}
+
 export type SprintData = {
   id: number
   startMoment: Moment
   endMoment: Moment
   results: {
-    [key: number]:
-      | {
-          finalWords: number
-          startWords: number
-          diff: number
-        }
-      | undefined
+    [key: number]: SprintResultData | undefined
   }
-  breakDuration: number
+}
+
+export type ParticipantsData = {
+  startWords: number
+  active: boolean
 }
 
 export type EventDataType = {
@@ -37,12 +41,7 @@ export type EventDataType = {
   sprints: SprintData[]
 
   participants: {
-    [key: number]:
-      | {
-          startWords: number
-          active: boolean
-        }
-      | undefined
+    [key: number]: ParticipantsData | undefined
   }
 }
 

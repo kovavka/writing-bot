@@ -89,7 +89,6 @@ export async function replyWithCurrentState(
   reactionText: string
 ): Promise<void> {
   const { isBreak, sprintIndex } = eventData
-  // todo might be undefined if user enters words before first sprint created
   const currentSprint = eventData.sprints[sprintIndex]
 
   const currentMoment = getToday()
@@ -97,7 +96,9 @@ export async function replyWithCurrentState(
   if (isBreak) {
     // break between sprints
     const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
-    await ctx.reply(texts.joinBeforeStart(reactionText, minutesToStart))
+    await ctx.reply(
+      texts.joinBeforeStart(reactionText, minutesToStart >= 0 ? minutesToStart : 0)
+    )
   } else {
     // sprint is already started
     const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
