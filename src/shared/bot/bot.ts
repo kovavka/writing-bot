@@ -50,13 +50,12 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   ): Promise<void> {
     for (const userId of userIds) {
       try {
-        await this.bot.telegram.sendMessage(
-          userId,
-          text,
-          Markup.inlineKeyboard([
+        await this.bot.telegram.sendMessage(userId, text, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
             buttons.map(button => Markup.button.callback(button.text, button.callback_data)),
-          ])
-        )
+          ]),
+        })
       } catch (error) {
         console.log(`Failed to send message to user ID: ${userId}`, error)
       }

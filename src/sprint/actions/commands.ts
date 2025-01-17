@@ -7,6 +7,8 @@ import { buttons } from '../copy/buttons'
 import { sprintFinalWordsHandler } from './shared'
 import { initSession, isValidNumber } from '../../shared/bot/utils'
 import { errors } from '../copy/errors'
+import * as db from '../database'
+import { MeowsQueryActionType } from '../types'
 
 async function statusHandler(ctx: SimpleContext): Promise<void> {
   const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -37,6 +39,36 @@ async function wordsHandler(ctx: CommandMessageContext): Promise<void> {
   }
 }
 
+async function startedEventsHandler(ctx: CommandMessageContext): Promise<void> {
+  const events = await db.getAllEvents('started')
+
+  await ctx.reply('Все события', {
+    reply_markup: {
+      inline_keyboard: events.map(row => [
+        {
+          text: row.startDateTime,
+          callback_data: `${MeowsQueryActionType.SelectEvent}_${row.id}`,
+        },
+      ]),
+    },
+  })
+}
+
+async function finishedEventsHandler(ctx: CommandMessageContext): Promise<void> {
+  const events = await db.getAllEvents('finished')
+
+  await ctx.reply('Завершённые события', {
+    reply_markup: {
+      inline_keyboard: events.map(row => [
+        {
+          text: row.startDateTime,
+          callback_data: `${MeowsQueryActionType.SelectEvent}_${row.id}`,
+        },
+      ]),
+    },
+  })
+}
+
 export const commands: BotCommand[] = [
   {
     command: 'status',
@@ -47,12 +79,22 @@ export const commands: BotCommand[] = [
     handler: helpHandler,
   },
   {
+    command: 'words',
+    handler: wordsHandler,
+  },
+  {
     command: 'admin',
     admin: true,
     handler: adminHandler,
   },
   {
-    command: 'words',
-    handler: wordsHandler,
+    command: 'events',
+    admin: true,
+    handler: startedEventsHandler,
+  },
+  {
+    command: 'eventsFinished',
+    admin: true,
+    handler: finishedEventsHandler,
   },
 ]

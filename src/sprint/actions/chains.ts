@@ -75,6 +75,7 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
     return
   }
   const { eventId, isBreak, sprintIndex } = GlobalSession.instance.eventData
+  // todo might not exist yet
   const currentSprint = GlobalSession.instance.eventData.sprints[sprintIndex]
 
   GlobalSession.instance.eventData.participants[userId] = {

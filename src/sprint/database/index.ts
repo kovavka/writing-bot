@@ -1,4 +1,4 @@
-import { Event, EventUser, Sprint, SprintUser, User } from './types'
+import { Event, EventStatData, EventUser, Sprint, SprintUser, User } from './types'
 import sqlite3 from 'sqlite3'
 import path from 'path'
 import { EventStatus } from '../types'
@@ -119,19 +119,11 @@ export function createEvent(
 }
 
 export function getEvent(id: number): Promise<Event | undefined> {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM Event WHERE id = ?`,
-      [id],
-      (err: Error | null, row: Event | undefined) => {
-        if (err) {
-          reject(err)
-        } else {
-          resolve(row)
-        }
-      }
-    )
-  })
+  return getOne<Event>(`SELECT * FROM Event WHERE id = ?`, [id])
+}
+
+export function getAllEvents(status: EventStatus): Promise<Event[]> {
+  return getAll<Event>(`SELECT * FROM Event WHERE status = ?`, [status])
 }
 
 export function updateEventStatus(id: number, status: EventStatus): Promise<void> {
@@ -189,24 +181,31 @@ export function updateEventUser(
 
 export function getEventUsers(eventId: number, active?: 0 | 1): Promise<EventUser[]> {
   if (active === undefined) {
-    return getAll('SELECT * FROM EventUser WHERE eventId = ?', [eventId])
+    return getAll<EventUser>('SELECT * FROM EventUser WHERE eventId = ?', [eventId])
   }
 
-  return getAll('SELECT * FROM EventUser WHERE eventId = ? AND active = ?', [eventId, active])
+  return getAll<EventUser>('SELECT * FROM EventUser WHERE eventId = ? AND active = ?', [
+    eventId,
+    active,
+  ])
 }
 
 export function getEventUser(userId: number, eventId: number): Promise<EventUser | undefined> {
-  return getOne('SELECT * FROM EventUser WHERE eventId = ? AND userId = ?', [eventId, userId])
+  return getOne<EventUser>('SELECT * FROM EventUser WHERE eventId = ? AND userId = ?', [
+    eventId,
+    userId,
+  ])
 }
 
 export function getSprint(sprintId: number): Promise<Sprint | undefined> {
-  return getOne(`SELECT * FROM Sprint WHERE id = ?`, [sprintId])
+  return getOne<Sprint>(`SELECT * FROM Sprint WHERE id = ?`, [sprintId])
 }
 
 export function getLatestSprint(eventId: number): Promise<Sprint | undefined> {
-  return getOne(`SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`, [
-    eventId,
-  ])
+  return getOne<Sprint>(
+    `SELECT * FROM Sprint WHERE eventId = ? ORDER BY startDateTime DESC LIMIT 1`,
+    [eventId]
+  )
 }
 
 export function createSprint(eventId: number, startDateTime: string): Promise<number> {
@@ -291,17 +290,20 @@ export function getSprintUsers(sprintId: number): Promise<SprintUser[]> {
   })
 }
 
-export function getEventStat(eventId: number): Promise<object[]> {
-  return getAll(
+// todo startWords from SprintUser
+export function getEventStat(eventId: number): Promise<EventStatData[]> {
+  return getAll<EventStatData>(
     `
-SELECT 
-    eu.userId
-    eu.startWords,
-    su.finalWords
-FROM EventUser eu
-JOIN SprintUser su on su.userId = eu.userId
-WHERE eventId = ?
-`,
+SELECT
+    user.id AS userId,
+    user.name AS userName,
+    eventUser.startWords,
+    sprintUser.finalWords
+FROM EventUser eventUser
+JOIN Sprint sprint ON sprint.eventId = eventUser.eventId 
+JOIN SprintUser sprintUser ON sprintUser.userId = eventUser.userId AND sprintUser.sprintId = sprint.id
+JOIN USER user ON user.id = sprintUser.userId
+WHERE eventUser.eventId = ?`,
     [eventId]
   )
 }

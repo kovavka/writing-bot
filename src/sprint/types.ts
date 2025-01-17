@@ -6,10 +6,12 @@ export enum MeowsTextChainType {
 export enum MeowsQueryActionType {
   CreateEvent = 'create_event',
   OpenEvent = 'open_event',
+  SelectEvent = 'select_event',
+  EventStat = 'eventStat',
+  FinishEvent = 'finish_event',
   JoinEvent = 'join_event',
   LeaveEvent = 'leave_event',
   RejoinEvent = 'rejoin_event',
-  Statistics = 'statistics',
 }
 
 export type EventStatus = 'created' | 'open' | 'started' | 'finished'

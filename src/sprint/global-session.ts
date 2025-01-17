@@ -10,7 +10,15 @@ type SprintData = {
   id: number
   startMoment: Moment
   endMoment: Moment
-  results: { [key: number]: number | undefined }
+  results: {
+    [key: number]:
+      | {
+          finalWords: number
+          startWords: number
+          diff: number
+        }
+      | undefined
+  }
   breakDuration: number
 }
 

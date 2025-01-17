@@ -15,7 +15,8 @@ import { GlobalSession } from '../global-session'
 import { DEFAULT_BREAK_DURATION, LONGER_BREAK_DURATION } from '../variables'
 import { startNewChain } from '../../shared/bot/utils'
 import { errors } from '../copy/errors'
-import { delay } from '../../shared/delay'
+import { getWordForm } from '../../shared/get-word-form'
+import { forms } from '../../shared/copy/forms'
 
 async function createEventHandler(ctx: ContextWithSession): Promise<void> {
   await ctx.reply(texts.setEventDateTime)
@@ -28,7 +29,38 @@ function saveEventId(ctx: ContextWithSession, eventId: number): void {
   }
 }
 
-// todo make sure this thing stops after stopping the process
+function getSprintStat(sprintIndex: number, sprintDuration: number): string {
+  const currentSprint = GlobalSession.instance.eventData!.sprints[sprintIndex]
+  const users = GlobalSession.instance.users
+
+  const currentSprintResult = Object.entries(currentSprint.results).reduce(
+    (data: Array<{ userName: string; diff: number }>, [userIdStr, result]) => {
+      const userId = Number(userIdStr)
+      const user = users.find(x => x.id === userId)
+
+      return [
+        ...data,
+        {
+          userName: user?.name ?? userId.toString(),
+          diff: result?.diff ?? 0,
+        },
+      ]
+    },
+    []
+  )
+
+  return currentSprintResult
+    .sort((a, b) => b.diff - a.diff)
+    .map(result => {
+      let line = `${result.userName} – ${result.diff} ${getWordForm(result.diff, forms.words)}`
+      if (result.diff > 0) {
+        line += ` _(${Math.round(result.diff / sprintDuration)} слов/мин)_`
+      }
+      return line
+    })
+    .join('\n')
+}
+
 async function runSprint(
   eventId: number,
   sprintIndex: number,
@@ -129,14 +161,20 @@ async function startEvent(
       )
     }
 
-    await delay(1000 * 60)
+    const resultLatestMoment = sprintEndMoment
+      .clone()
+      .add(DEFAULT_BREAK_DURATION * 60 - 30, 'seconds')
 
-    await sendMessage(
-      [Number(ADMIN_ID)],
-      `data: ${JSON.stringify(GlobalSession.instance.eventData!.sprints[i].results)}`,
-      []
-    )
+    await delayUntil(resultLatestMoment)
+
+    const sprintStat = getSprintStat(i, event.sprintDuration)
+
+    await sendMessage(nextActiveUserIds, texts.sprintResult(i + 1, sprintStat), [])
   }
+
+  await sendMessage([Number(ADMIN_ID)], `Последний спринт завершён. eventId = ${event.id}`, [
+    buttons.eventStat(event.id),
+  ])
 }
 
 export async function getEventById(eventId: number): Promise<Event> {
@@ -242,17 +280,87 @@ async function rejoinEventHandler(
   // await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
 }
 
-async function eventStatisticsEventHandler(
+async function eventStatisticsHandler(
   ctx: ContextWithSession<CallbackQueryContext>,
   eventIdStr: string
 ): Promise<void> {
   const eventId = Number(eventIdStr)
-  const { id: userId } = ctx.from
 
-  await db.updateEventUser(userId, eventId, 1)
+  const data = await db.getEventStat(eventId)
+  const userResults: Record<
+    number,
+    {
+      userName: string
+      diff: number
+    }
+  > = []
 
-  // todo reply with current state
-  // await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
+  const [event, allParticipants] = await Promise.all([
+    getEventById(eventId),
+    db.getEventUsers(eventId),
+  ])
+
+  data.forEach(({ userId, userName, startWords, finalWords }) => {
+    if (userResults[userId] === undefined) {
+      userResults[userId] = {
+        userName,
+        diff: 0,
+      }
+    }
+    if (finalWords > startWords) {
+      userResults[userId].diff += finalWords - startWords
+    }
+  })
+
+  const wordsTotal = Object.values(userResults).reduce(
+    (partialSum, a) => partialSum + a.diff,
+    0
+  )
+  const strStat = Object.values(userResults)
+    .sort((a, b) => b.diff - a.diff)
+    .map(
+      result => `${result.userName} – ${result.diff} ${getWordForm(result.diff, forms.words)}`
+    )
+    .join('\n')
+
+  await ctx.reply(
+    texts.eventStat(event.sprintsNumber, allParticipants.length, wordsTotal, strStat)
+  )
+}
+
+async function finishEventHandler(
+  ctx: ContextWithSession<CallbackQueryContext>,
+  eventIdStr: string
+): Promise<void> {
+  const eventId = Number(eventIdStr)
+
+  GlobalSession.instance.eventData = undefined
+  await db.updateEventStatus(eventId, 'finished')
+  await ctx.reply(`Событие №${eventId} завершено`)
+}
+
+async function selectEventHandler(
+  ctx: ContextWithSession<CallbackQueryContext>,
+  eventIdStr: string
+): Promise<void> {
+  const eventId = Number(eventIdStr)
+  const event = await getEventById(eventId)
+
+  const message = `Событие ${event.startDateTime} id = ${eventId}`
+  if (event.status === 'finished') {
+    await ctx.reply(message, {
+      reply_markup: {
+        inline_keyboard: [[buttons.eventStat(eventId)]],
+      },
+    })
+  } else {
+    await ctx.reply(message, {
+      reply_markup: {
+        // todo add restart last sprint
+        inline_keyboard: [[buttons.eventStat(eventId), buttons.finishEvent(eventId)]],
+      },
+    })
+  }
 }
 
 export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[] = [
@@ -279,8 +387,16 @@ export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[
     handler: rejoinEventHandler,
   },
   {
-    type: MeowsQueryActionType.Statistics,
-    handler: eventStatisticsEventHandler,
+    type: MeowsQueryActionType.EventStat,
+    handler: eventStatisticsHandler,
+  },
+  {
+    type: MeowsQueryActionType.FinishEvent,
+    handler: finishEventHandler,
+  },
+  {
+    type: MeowsQueryActionType.SelectEvent,
+    handler: selectEventHandler,
   },
   // todo restart current sprint timer
 ]

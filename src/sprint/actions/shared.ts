@@ -7,7 +7,7 @@ import { buttons } from '../copy/buttons'
 
 export async function sprintFinalWordsHandler(
   ctx: ContextWithSession,
-  words: number
+  finalWords: number
 ): Promise<void> {
   const { id: userId } = ctx.from
   if (GlobalSession.instance.eventData === undefined) {
@@ -29,27 +29,32 @@ export async function sprintFinalWordsHandler(
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
     if (currentSprint.results[userId] === undefined) {
-      db.createSprintUser(userId, currentSprint.id, words).catch(err =>
+      db.createSprintUser(userId, currentSprint.id, finalWords).catch(err =>
         GlobalSession.instance.sendError(err)
       )
     } else {
-      db.updateSprintUser(userId, currentSprint.id, words).catch(err =>
+      db.updateSprintUser(userId, currentSprint.id, finalWords).catch(err =>
         GlobalSession.instance.sendError(err)
       )
     }
 
-    currentSprint.results[userId] = words
     let prevWords: number | undefined
     for (let i = sprintIndex - 1; i >= 0; i--) {
       const sprint = GlobalSession.instance.eventData.sprints[i]
       const result = sprint.results[userId]
       if (result !== undefined) {
-        prevWords = result
+        prevWords = result.finalWords
         break
       }
     }
 
-    const wordsDiff = words - (prevWords ?? participantData.startWords ?? 0)
+    const startWords = prevWords ?? participantData.startWords ?? 0
+    const wordsDiff = finalWords - startWords
+    currentSprint.results[userId] = {
+      startWords,
+      finalWords,
+      diff: wordsDiff,
+    }
 
     if (sprintIndex + 1 === sprintsNumber) {
       // last sprint
