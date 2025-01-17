@@ -1,9 +1,10 @@
-import { ContextWithSession } from '../../shared/bot/context'
-import { GlobalSession } from '../global-session'
+import { ContextWithSession, SimpleContext } from '../../shared/bot/context'
+import { EventDataType, GlobalSession } from '../global-session'
 import * as db from '../database'
 import { texts } from '../copy/texts'
 import { errors } from '../copy/errors'
 import { buttons } from '../copy/buttons'
+import { getToday } from '../../shared/date'
 
 async function saveSprintUserResult(
   userId: number,
@@ -79,5 +80,28 @@ export async function sprintFinalWordsHandler(
         },
       })
     }
+  }
+}
+
+export async function replyWithCurrentState(
+  ctx: SimpleContext,
+  eventData: EventDataType,
+  reactionText: string
+): Promise<void> {
+  const { isBreak, sprintIndex } = eventData
+  // todo might be undefined if user enters words before first sprint created
+  const currentSprint = eventData.sprints[sprintIndex]
+
+  const currentMoment = getToday()
+
+  if (isBreak) {
+    // break between sprints
+    const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
+    await ctx.reply(texts.joinBeforeStart(reactionText, minutesToStart))
+  } else {
+    // sprint is already started
+    const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
+    // in the end of sprint we might already get -1, but there are still some seconds left
+    await ctx.reply(texts.joinAfterStart(reactionText, minutesLeft >= 0 ? minutesLeft : 0))
   }
 }

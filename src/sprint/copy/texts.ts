@@ -23,11 +23,12 @@ export const texts = {
   alreadyJoined: 'Ты уже присоединилась к событию, ведьмочка',
   setWordsStart:
     'Напиши, сколько слов у тебя уже есть. Если хочешь начать с чистого листа, пиши 0',
-  wordsSetBeforeStart: (minutesLeft: number): string =>
-    `Замурчательно! Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)}`,
-  wordsSetAfterStart: (minutesLeft: number): string =>
-    `Замурчательно! Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
-  wordsSetBeforeFinish: `Замурчательно! Текущий спринт уже почти закончился, подожди немного`,
+  rejoin: `Рад, что ты вернулась!`,
+  wordsSet: `Замурчательно!`,
+  joinBeforeStart: (reactionText: string, minutesLeft: number): string =>
+    `${reactionText} Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)}`,
+  joinAfterStart: (reactionText: string, minutesLeft: number): string =>
+    `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
   sprintStarted: (sprintNumber: number, minutesLeft: number, endTime: string): string =>
     `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime} МСК)`,
   sprintFinished: (
@@ -54,7 +55,7 @@ ${data}`,
     `Отличная работа! Ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}.
 Это был последний спринт. Мы опубликуем статистику события в канале через несколько минут`,
   eventLeft:
-    'Ты больше не будете получать уведомления о спринтах в текущем событии. Ты сможешь вернуться в любой момент, пока идёт событие',
+    'Ты больше не будешь получать уведомления о спринтах в текущем событии. Ты сможешь вернуться в любой момент, пока идёт событие',
   eventIsAlreadyFinished:
     'Прости, событие уже закончилось. Я напишу тебе, когда мы запланируем новое',
 }

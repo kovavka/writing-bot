@@ -6,7 +6,7 @@ import { ADMIN_ID } from '../shared/variables'
 import { Context, Telegraf } from 'telegraf'
 import { Update } from 'telegraf/typings/core/types/typegram'
 
-type SprintData = {
+export type SprintData = {
   id: number
   startMoment: Moment
   endMoment: Moment
@@ -22,7 +22,7 @@ type SprintData = {
   breakDuration: number
 }
 
-type EventDataType = {
+export type EventDataType = {
   eventId: number
   eventStatus: EventStatus
 

@@ -4,9 +4,10 @@ import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actio
 import { texts } from '../copy/texts'
 import * as db from '../database'
 import { buttons } from '../copy/buttons'
-import { getToday, stringToDateTime } from '../../shared/date'
+import { stringToDateTime } from '../../shared/date'
 import { GlobalSession } from '../global-session'
 import { errors } from '../copy/errors'
+import { replyWithCurrentState } from './shared'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
@@ -74,9 +75,7 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
     await ctx.reply(texts.eventIsAlreadyFinished)
     return
   }
-  const { eventId, isBreak, sprintIndex } = GlobalSession.instance.eventData
-  // todo might not exist yet
-  const currentSprint = GlobalSession.instance.eventData.sprints[sprintIndex]
+  const { eventId } = GlobalSession.instance.eventData
 
   GlobalSession.instance.eventData.participants[userId] = {
     startWords: words,
@@ -86,21 +85,8 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
   db.updateEventUser(userId, eventId, 1, words).catch((err: unknown) =>
     GlobalSession.instance.sendError(err)
   )
-  const currentMoment = getToday()
 
-  const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
-
-  if (isBreak) {
-    // break between sprints
-    const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
-    await ctx.reply(texts.wordsSetBeforeStart(minutesToStart))
-  } else if (minutesLeft <= 0) {
-    // in the end of sprint we might already get -1, so better to send a different message
-    await ctx.reply(texts.wordsSetBeforeFinish)
-  } else {
-    // sprint is already started
-    await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
-  }
+  await replyWithCurrentState(ctx, GlobalSession.instance.eventData, texts.wordsSet)
 }
 
 export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessionData>[] = [

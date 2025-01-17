@@ -1,6 +1,6 @@
 import { CallbackQueryContext, ContextWithSession } from '../../shared/bot/context'
 import { MeowsQueryActionType, MeowsTextChainType } from '../types'
-import { BotQueryAction, SendMessageType, TextChainSessionData } from '../../shared/bot/actions'
+import { BotQueryAction, SendMessageType } from '../../shared/bot/actions'
 import { texts } from '../copy/texts'
 import * as db from '../database'
 import { Event } from '../database/types'
@@ -10,23 +10,16 @@ import { InlineKeyboardButton } from '../../shared/copy/types'
 import { buttons } from '../copy/buttons'
 import { Moment } from 'moment-timezone'
 import { delayUntil } from '../time-utils'
-import { EventData } from './chains'
 import { GlobalSession } from '../global-session'
 import { DEFAULT_BREAK_DURATION, LONGER_BREAK_DURATION } from '../variables'
 import { startNewChain } from '../../shared/bot/utils'
 import { errors } from '../copy/errors'
 import { getWordForm } from '../../shared/get-word-form'
 import { forms } from '../../shared/copy/forms'
+import { replyWithCurrentState } from './shared'
 
 async function createEventHandler(ctx: ContextWithSession): Promise<void> {
   await ctx.reply(texts.setEventDateTime)
-}
-
-function saveEventId(ctx: ContextWithSession, eventId: number): void {
-  const { id: userId } = ctx.from
-  ctx.session[userId] = <Omit<EventData, keyof TextChainSessionData<MeowsTextChainType>>>{
-    eventId,
-  }
 }
 
 function getSprintStat(sprintIndex: number, sprintDuration: number): string {
@@ -61,8 +54,13 @@ function getSprintStat(sprintIndex: number, sprintDuration: number): string {
     .join('\n')
 }
 
+function getActiveUserIds(): number[] {
+  return Object.entries(GlobalSession.instance.eventData!.participants)
+    .filter(([, data]) => data?.active)
+    .map(([id]) => Number(id))
+}
+
 async function runSprint(
-  eventId: number,
   sprintIndex: number,
   sprintDuration: number,
   sprintStartMoment: Moment,
@@ -75,9 +73,8 @@ async function runSprint(
   GlobalSession.instance.eventData!.sprintIndex = sprintIndex
   GlobalSession.instance.eventData!.isBreak = false
 
-  const activeUserIds = (await db.getEventUsers(eventId, 1)).map(x => x.userId)
   await sendMessage(
-    activeUserIds,
+    getActiveUserIds(),
     texts.sprintStarted(
       sprintIndex + 1,
       sprintDuration,
@@ -108,7 +105,7 @@ async function startEvent(
     sprintIndex: 0,
     isBreak: true,
     sprints: [],
-    participants: [],
+    participants: {},
   }
 
   const minutesLeft = eventStartMoment.diff(getToday(), 'minutes')
@@ -133,20 +130,13 @@ async function startEvent(
       breakDuration: breakDuration,
     })
 
-    await runSprint(
-      event.id,
-      i,
-      event.sprintDuration,
-      sprintStartMoment,
-      sprintEndMoment,
-      sendMessage
-    )
+    await runSprint(i, event.sprintDuration, sprintStartMoment, sprintEndMoment, sendMessage)
 
     // sprint just finished
     GlobalSession.instance.eventData!.isBreak = true
 
     // getting users again in case someone joined after the sprint started
-    const nextActiveUserIds = (await db.getEventUsers(event.id, 1)).map(x => x.userId)
+    const nextActiveUserIds = getActiveUserIds()
 
     const isLastSprint = i === event.sprintsNumber - 1
     if (isLastSprint) {
@@ -216,16 +206,24 @@ async function joinEventHandler(
   const eventId = Number(eventIdStr)
   const { id: userId } = ctx.from
 
-  const event = await getEventById(eventId)
-  saveEventId(ctx, eventId)
-
-  if (event.status === 'finished') {
+  if (
+    GlobalSession.instance.eventData === undefined ||
+    GlobalSession.instance.eventData.eventId !== eventId
+  ) {
     await ctx.reply(texts.eventIsAlreadyFinished)
     return
   }
 
-  const eventUser = await db.getEventUser(userId, eventId)
-  if (eventUser === undefined) {
+  const { eventStatus } = GlobalSession.instance.eventData
+
+  if (eventStatus === 'finished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const participant = GlobalSession.instance.eventData.participants[userId]
+
+  if (participant === undefined) {
     await db.createEventUser(userId, eventId, 1)
     await ctx.reply(texts.setWordsStart)
 
@@ -242,9 +240,27 @@ async function leaveEventHandler(
   const eventId = Number(eventIdStr)
   const { id: userId } = ctx.from
 
-  const participant = GlobalSession.instance.eventData?.participants?.[eventId]
+  if (
+    GlobalSession.instance.eventData === undefined ||
+    GlobalSession.instance.eventData.eventId !== eventId
+  ) {
+    console.log('eventId')
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const { eventStatus } = GlobalSession.instance.eventData
+
+  if (eventStatus === 'finished') {
+    console.log('finished')
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const participant = GlobalSession.instance.eventData.participants[userId]
 
   if (participant === undefined) {
+    console.log('undefined participant')
     await ctx.reply(errors.unknownCommand)
     return
   }
@@ -266,7 +282,22 @@ async function rejoinEventHandler(
   const eventId = Number(eventIdStr)
   const { id: userId } = ctx.from
 
-  const participant = GlobalSession.instance.eventData?.participants?.[eventId]
+  if (
+    GlobalSession.instance.eventData === undefined ||
+    GlobalSession.instance.eventData.eventId !== eventId
+  ) {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const { eventStatus } = GlobalSession.instance.eventData
+
+  if (eventStatus === 'finished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const participant = GlobalSession.instance.eventData.participants[userId]
 
   if (participant === undefined) {
     await ctx.reply(errors.unknownCommand)
@@ -275,10 +306,10 @@ async function rejoinEventHandler(
 
   participant.active = true
 
-  await db.updateEventUser(userId, eventId, 1)
+  await replyWithCurrentState(ctx, GlobalSession.instance.eventData, texts.rejoin)
 
-  // todo reply with current state
-  // await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
+  // save to db as a backup
+  await db.updateEventUser(userId, eventId, 1)
 }
 
 async function eventStatisticsHandler(
