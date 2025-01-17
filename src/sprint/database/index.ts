@@ -227,12 +227,13 @@ export function createSprint(eventId: number, startDateTime: string): Promise<nu
 export function createSprintUser(
   userId: number,
   sprintId: number,
+  startWords: number,
   finalWords: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO SprintUser (userId, sprintId, finalWords) VALUES (?, ?, ?)`,
-      [userId, sprintId, finalWords],
+      `INSERT INTO SprintUser (userId, sprintId, startWords, finalWords) VALUES (?, ?, ?, ?)`,
+      [userId, sprintId, startWords, finalWords],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -247,12 +248,13 @@ export function createSprintUser(
 export function updateSprintUser(
   userId: number,
   sprintId: number,
+  startWords: number,
   finalWords: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE SprintUser SET finalWords = ? WHERE userId = ? AND sprintId = ?`,
-      [finalWords, userId, sprintId],
+      `UPDATE SprintUser SET startWords = ?, finalWords = ? WHERE userId = ? AND sprintId = ?`,
+      [startWords, finalWords, userId, sprintId],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -297,7 +299,7 @@ export function getEventStat(eventId: number): Promise<EventStatData[]> {
 SELECT
     user.id AS userId,
     user.name AS userName,
-    eventUser.startWords,
+    sprintUser.startWords,
     sprintUser.finalWords
 FROM EventUser eventUser
 JOIN Sprint sprint ON sprint.eventId = eventUser.eventId 

@@ -174,6 +174,7 @@ async function startEvent(
 
   await sendMessage([Number(ADMIN_ID)], `Последний спринт завершён. eventId = ${event.id}`, [
     buttons.eventStat(event.id),
+    buttons.finishEvent(event.id),
   ])
 }
 

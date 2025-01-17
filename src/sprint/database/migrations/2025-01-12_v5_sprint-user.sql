@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS SprintUser (
     sprintId INTEGER NOT NULL,
     userId INTEGER NOT NULL,
+    startWords INTEGER,
     finalWords INTEGER,
     PRIMARY KEY (sprintId, userId),
     FOREIGN KEY (sprintId) REFERENCES Sprint (id),

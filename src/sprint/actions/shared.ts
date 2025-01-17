@@ -5,6 +5,26 @@ import { texts } from '../copy/texts'
 import { errors } from '../copy/errors'
 import { buttons } from '../copy/buttons'
 
+async function saveSprintUserResult(
+  userId: number,
+  sprintId: number,
+  startWords: number,
+  finalWords: number
+): Promise<void> {
+  try {
+    // save in db for stat and as a backup
+    const sprintUser = await db.getSprintUser(userId, sprintId)
+
+    if (sprintUser === undefined) {
+      await db.createSprintUser(userId, sprintId, startWords, finalWords)
+    } else {
+      await db.updateSprintUser(userId, sprintId, startWords, finalWords)
+    }
+  } catch (err) {
+    GlobalSession.instance.sendError(err)
+  }
+}
+
 export async function sprintFinalWordsHandler(
   ctx: ContextWithSession,
   finalWords: number
@@ -28,16 +48,6 @@ export async function sprintFinalWordsHandler(
   if (eventStatus === 'finished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
-    if (currentSprint.results[userId] === undefined) {
-      db.createSprintUser(userId, currentSprint.id, finalWords).catch(err =>
-        GlobalSession.instance.sendError(err)
-      )
-    } else {
-      db.updateSprintUser(userId, currentSprint.id, finalWords).catch(err =>
-        GlobalSession.instance.sendError(err)
-      )
-    }
-
     let prevWords: number | undefined
     for (let i = sprintIndex - 1; i >= 0; i--) {
       const sprint = GlobalSession.instance.eventData.sprints[i]
@@ -55,6 +65,9 @@ export async function sprintFinalWordsHandler(
       finalWords,
       diff: wordsDiff,
     }
+
+    // no need to wait here
+    saveSprintUserResult(userId, currentSprint.id, startWords, finalWords)
 
     if (sprintIndex + 1 === sprintsNumber) {
       // last sprint

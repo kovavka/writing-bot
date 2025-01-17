@@ -29,6 +29,7 @@ export type EventUser = {
 export type SprintUser = {
   sprintId: number
   userId: number
+  startWords: number
   finalWords: number
 }
 
