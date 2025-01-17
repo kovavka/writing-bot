@@ -5,10 +5,10 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { Event } from '../database/types'
 import { getToday, stringToDateTime } from '../../shared/date'
-import { ADMIN_ID, DATE_TIME_FORMAT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
+import { ADMIN_ID, DATE_TIME_FORMAT } from '../../shared/variables'
 import { buttons } from '../copy/buttons'
 import { Moment } from 'moment-timezone'
-import { delayUntil, formatTimeToMinutes } from '../time-utils'
+import { delayUntil } from '../time-utils'
 import {
   EventDataType,
   GlobalSession,
@@ -92,7 +92,7 @@ async function runSprints(
   let sprintId = startSprintId
   let sprintStartMoment = startMoment
   for (let i = sprintIndexStart; i < sprintsNumber; i++) {
-    GlobalSession.instance.eventData!.sprintIndex = i
+    eventData.sprintIndex = i
     const breakDuration = getCurrentBreakDuration(i)
     const sprintEndMoment = sprintStartMoment.clone().add(sprintDuration, 'minutes')
 
@@ -106,31 +106,35 @@ async function runSprints(
     await delayUntil(sprintStartMoment)
 
     // sprint started
-    GlobalSession.instance.eventData!.isBreak = false
+    eventData.sprintStatus = 'sprint'
+    eventData.nextStageMoment = sprintEndMoment
 
     await sendMessage(
       getActiveUserIds(),
-      texts.sprintStarted(i + 1, sprintDuration, formatTimeToMinutes(sprintEndMoment)),
+      texts.sprintStarted(i + 1, sprintDuration, sprintEndMoment),
       []
     )
 
     await delayUntil(sprintEndMoment)
-
     // sprint just finished
-    eventData.isBreak = true
 
     // getting users again in case someone joined after the sprint started
     const nextActiveUserIds = getActiveUserIds()
 
     const isLastSprint = i === sprintsNumber - 1
     if (isLastSprint) {
+      eventData.sprintStatus = 'lastSprintFinished'
       await sendMessage(nextActiveUserIds, texts.sprintFinishedLast, [])
     } else {
+      eventData.sprintStatus = 'break'
       sprintStartMoment = sprintEndMoment.clone().add(breakDuration, 'minutes')
+
+      eventData.nextStageMoment = sprintStartMoment
+
       sprintId = await db.createSprint(eventId, sprintStartMoment.format(DATE_TIME_FORMAT))
       await sendMessage(
         nextActiveUserIds,
-        texts.sprintFinished(breakDuration, formatTimeToMinutes(sprintStartMoment)),
+        texts.sprintFinished(breakDuration, sprintStartMoment),
         []
       )
     }
@@ -169,18 +173,17 @@ async function startEvent(
     eventStatus: 'started',
     sprintsNumber: event.sprintsNumber,
     sprintIndex: 0,
-    isBreak: true,
+    sprintStatus: 'break',
+    nextStageMoment: eventStartMoment,
     sprints: [],
     participants: {},
   }
 
   const minutesLeft = eventStartMoment.diff(getToday(), 'minutes')
 
-  await sendMessage(
-    userIds,
-    texts.eventStartingSoon(minutesLeft, eventStartMoment.format(TIME_FORMAT_OUTPUT)),
-    [buttons.joinEvent(event.id)]
-  )
+  await sendMessage(userIds, texts.eventStartingSoon(minutesLeft, eventStartMoment), [
+    buttons.joinEvent(event.id),
+  ])
 
   await runSprints(
     GlobalSession.instance.eventData!,
@@ -310,9 +313,9 @@ async function rejoinEventHandler(
     return
   }
 
-  const { eventStatus } = GlobalSession.instance.eventData
+  const { eventStatus, sprintStatus } = GlobalSession.instance.eventData
 
-  if (eventStatus === 'finished') {
+  if (eventStatus === 'finished' || sprintStatus === 'lastSprintFinished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
     return
   }
@@ -486,7 +489,8 @@ async function startLatestSprintHandler(
     eventStatus: 'started',
     sprintsNumber: event.sprintsNumber,
     sprintIndex: allSprints.length - 1,
-    isBreak: true,
+    sprintStatus: 'break',
+    nextStageMoment: sprintNewStart,
     sprints: sprintsData,
     participants,
   }

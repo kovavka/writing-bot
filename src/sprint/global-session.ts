@@ -26,6 +26,8 @@ export type ParticipantsData = {
   active: boolean
 }
 
+export type SprintStatus = 'sprint' | 'break' | 'lastSprintFinished'
+
 export type EventDataType = {
   eventId: number
   eventStatus: EventStatus
@@ -35,8 +37,14 @@ export type EventDataType = {
    */
   sprintIndex: number
 
+  sprintStatus: SprintStatus
+
+  /**
+   * either break start or sprint start
+   */
+  nextStageMoment: Moment
+
   sprintsNumber: number
-  isBreak?: boolean
 
   sprints: SprintData[]
 

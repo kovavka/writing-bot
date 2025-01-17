@@ -70,7 +70,9 @@ new WritingBot(bot, errors)
 async function launch(): Promise<void> {
   const users = await db.getAllUsers()
   GlobalSession.init(bot, users, undefined)
-  await bot.launch()
+  await bot.launch(() => {
+    GlobalSession.instance.sendToAdmin('bot started')
+  })
   console.log('Meows is running...')
 }
 

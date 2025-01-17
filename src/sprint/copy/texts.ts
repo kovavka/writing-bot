@@ -2,6 +2,7 @@ import { getWordForm } from '../../shared/get-word-form'
 import { forms } from '../../shared/copy/forms'
 import { DATE_FORMAT_OUTPUT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
 import { Moment } from 'moment-timezone'
+import { formatTimeToMinutes } from '../time-utils'
 
 export const texts = {
   help: 'Мурмур! Я Мяуз, самый пунктуальный из фамильяров. Буду помогать тебе следить за временем, пока ты пишешь',
@@ -16,8 +17,8 @@ export const texts = {
     `Событие создано. Оно начнётся ${date.format(DATE_FORMAT_OUTPUT)} в ${date.format(TIME_FORMAT_OUTPUT)} МСК`,
   adminEventOpened: 'Событие запущено',
   eventNotificationStarted: 'Отправляю оповещения 📢',
-  eventStartingSoon: (minutesLeft: number, startTime: string): string =>
-    `Первый спринт начнётся уже через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)} (в ${startTime} МСК). Ты можешь присоединиться сейчас, либо в любой момент, пока идёт событие`,
+  eventStartingSoon: (minutesLeft: number, date: Moment): string =>
+    `Первый спринт начнётся уже через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)} (в ${date.format(TIME_FORMAT_OUTPUT)} МСК). Ты можешь присоединиться сейчас, либо в любой момент, пока идёт событие`,
   alreadyJoined: 'Ты уже присоединилась к событию, ведьмочка',
   noEvent: (welcomeText: string): string =>
     `${welcomeText}\n
@@ -29,16 +30,16 @@ export const texts = {
     'Напиши, сколько слов у тебя уже есть. Если хочешь начать с чистого листа, пиши 0',
   rejoin: `Рад, что ты вернулась!`,
   wordsSet: `Замурчательно!`,
-  joinBeforeStart: (reactionText: string, minutesLeft: number): string =>
-    `${reactionText} Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)}`,
-  joinAfterStart: (reactionText: string, minutesLeft: number): string =>
-    `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
-  sprintStarted: (sprintNumber: number, minutesLeft: number, endTime: string): string =>
-    `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime})`,
+  joinBeforeStart: (reactionText: string, minutesLeft: number, startMoment: Moment): string =>
+    `${reactionText} Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)} (в ${formatTimeToMinutes(startMoment)})`,
+  joinAfterStart: (reactionText: string, minutesLeft: number, endMoment: Moment): string =>
+    `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${formatTimeToMinutes(endMoment)})`,
+  sprintStarted: (sprintNumber: number, minutesLeft: number, endMoment: Moment): string =>
+    `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${formatTimeToMinutes(endMoment)})`,
   sprintFinished: (
     breakDuration: number,
-    startTime: string
-  ): string => `Спринт закончился. Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${startTime}).\n
+    startMoment: Moment
+  ): string => `Спринт закончился. Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${formatTimeToMinutes(startMoment)}).\n
 A пока скажи, сколько слов теперь в твоём гримуаре?`,
   sprintFinishedLast: `Спринт закончился. Скажи, сколько слов теперь в твоём гримуаре?`,
   sprintResult: (sprintNumber: number, data: string): string =>

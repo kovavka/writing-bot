@@ -70,9 +70,9 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
     return
   }
 
-  const { eventStatus } = GlobalSession.instance.eventData
+  const { eventStatus, sprintStatus } = GlobalSession.instance.eventData
 
-  if (eventStatus === 'finished') {
+  if (eventStatus === 'finished' || sprintStatus === 'lastSprintFinished') {
     await ctx.reply(texts.eventIsAlreadyFinished)
     return
   }

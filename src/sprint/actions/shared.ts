@@ -88,21 +88,16 @@ export async function replyWithCurrentState(
   eventData: EventDataType,
   reactionText: string
 ): Promise<void> {
-  const { isBreak, sprintIndex } = eventData
-  const currentSprint = eventData.sprints[sprintIndex]
+  const { sprintStatus, nextStageMoment } = eventData
 
   const currentMoment = getToday()
+  const minutesLeft = nextStageMoment.diff(currentMoment, 'minutes')
 
-  if (isBreak) {
-    // break between sprints
-    const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
-    await ctx.reply(
-      texts.joinBeforeStart(reactionText, minutesToStart >= 0 ? minutesToStart : 0)
-    )
-  } else {
+  if (sprintStatus === 'sprint') {
     // sprint is already started
-    const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
-    // in the end of sprint we might already get -1, but there are still some seconds left
-    await ctx.reply(texts.joinAfterStart(reactionText, minutesLeft >= 0 ? minutesLeft : 0))
+    await ctx.reply(texts.joinAfterStart(reactionText, minutesLeft, nextStageMoment))
+  } else {
+    // break between sprints
+    await ctx.reply(texts.joinBeforeStart(reactionText, minutesLeft, nextStageMoment))
   }
 }
