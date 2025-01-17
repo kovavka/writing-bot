@@ -27,6 +27,7 @@ export const texts = {
     `Замурчательно! Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)}`,
   wordsSetAfterStart: (minutesLeft: number): string =>
     `Замурчательно! Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
+  wordsSetBeforeFinish: `Замурчательно! Текущий спринт уже почти закончился, подожди немного`,
   sprintStarted: (sprintNumber: number, minutesLeft: number, endTime: string): string =>
     `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime} МСК)`,
   sprintFinished: (

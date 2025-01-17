@@ -88,12 +88,17 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
   )
   const currentMoment = getToday()
 
+  const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
+
   if (isBreak) {
+    // break between sprints
     const minutesToStart = currentSprint.startMoment.diff(currentMoment, 'minutes')
     await ctx.reply(texts.wordsSetBeforeStart(minutesToStart))
+  } else if (minutesLeft <= 0) {
+    // in the end of sprint we might already get -1, so better to send a different message
+    await ctx.reply(texts.wordsSetBeforeFinish)
   } else {
     // sprint is already started
-    const minutesLeft = currentSprint.endMoment.diff(currentMoment, 'minutes')
     await ctx.reply(texts.wordsSetAfterStart(minutesLeft))
   }
 }
