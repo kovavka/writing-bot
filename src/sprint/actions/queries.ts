@@ -47,6 +47,17 @@ function getSprintStat(sprintIndex: number, sprintDuration: number): string {
     []
   )
 
+  const participants = GlobalSession.instance.eventData!.participants
+  users.forEach(user => {
+    // active participant who didn't submit the result
+    if (currentSprint.results[user.id] === undefined && participants[user.id]?.active) {
+      currentSprintResult.push({
+        userName: user.name,
+        diff: 0,
+      })
+    }
+  })
+
   return currentSprintResult
     .sort((a, b) => b.diff - a.diff)
     .map(result => {
@@ -76,11 +87,12 @@ async function runSprints(
   startMoment: Moment,
   sendMessage: SendMessageType<MeowsQueryActionType>
 ): Promise<void> {
-  const { eventId, sprintsNumber, sprintIndex } = eventData
+  const { eventId, sprintsNumber, sprintIndex: sprintIndexStart } = eventData
 
   let sprintId = startSprintId
   let sprintStartMoment = startMoment
-  for (let i = sprintIndex; i < sprintsNumber; i++) {
+  for (let i = sprintIndexStart; i < sprintsNumber; i++) {
+    GlobalSession.instance.eventData!.sprintIndex = i
     const breakDuration = getCurrentBreakDuration(i)
     const sprintEndMoment = sprintStartMoment.clone().add(sprintDuration, 'minutes')
 
@@ -94,7 +106,6 @@ async function runSprints(
     await delayUntil(sprintStartMoment)
 
     // sprint started
-    GlobalSession.instance.eventData!.sprintIndex = sprintIndex
     GlobalSession.instance.eventData!.isBreak = false
 
     await sendMessage(
@@ -468,6 +479,7 @@ async function startLatestSprintHandler(
       results: allResults[sprint.id] ?? {},
     }
   })
+  // todo cleanup latest sprint result in db
 
   GlobalSession.instance.eventData = {
     eventId: event.id,
@@ -478,8 +490,6 @@ async function startLatestSprintHandler(
     sprints: sprintsData,
     participants,
   }
-
-  console.log(JSON.stringify(GlobalSession.instance.eventData))
 
   // should run in background, never use await here
   runSprints(

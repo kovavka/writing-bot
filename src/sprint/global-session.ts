@@ -31,7 +31,7 @@ export type EventDataType = {
   eventStatus: EventStatus
 
   /**
-   * When on break, this will be the next sprint
+   * After sending statistics this will be the next sprint
    */
   sprintIndex: number
 
