@@ -41,7 +41,7 @@ new WritingBot(bot, errors)
   .setChainActions(textInputCommands)
 
 bot.launch()
-console.log('Bot is running...')
+console.log('Pero is running...')
 
 process.on('SIGINT', () => {
   db.close()

@@ -1,16 +1,20 @@
 import { ADMIN_ID } from '../variables'
 import {
   CallbackQueryContext,
+  CommandMessageContext,
   ContextWithSession,
   SimpleContext,
   TextMessageContext,
 } from './context'
-import { Context, session, Telegraf } from 'telegraf'
+import { Context, session, Telegraf, Markup } from 'telegraf'
 import { Update } from 'telegraf/typings/core/types/typegram'
 import { callbackQuery } from 'telegraf/filters'
 import { initSession, isValidNumber, isValidString, startNewChain } from './utils'
 import { BotCommand, BotQueryAction, BotTextChainAction, TextChainSessionData } from './actions'
-import { ErrorMessage } from '../copy/types'
+import { ErrorMessage, InlineKeyboardButton } from '../copy/types'
+import { delay } from '../delay'
+
+const MESSAGE_TIMEOUT = 1000
 
 function isAdmin(ctx: SimpleContext): boolean {
   const { id: userId } = ctx.from
@@ -39,10 +43,30 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
     this.bot.telegram.sendMessage(ADMIN_ID, `Something went wrong. ${err}`)
   }
 
+  private async sendMessage(
+    userIds: number[],
+    text: string,
+    buttons: InlineKeyboardButton<QueryType>[]
+  ): Promise<void> {
+    for (const userId of userIds) {
+      try {
+        await this.bot.telegram.sendMessage(userId, text, {
+          parse_mode: 'Markdown',
+          ...Markup.inlineKeyboard([
+            buttons.map(button => Markup.button.callback(button.text, button.callback_data)),
+          ]),
+        })
+      } catch (error) {
+        console.log(`Failed to send message to user ID: ${userId}`, error)
+      }
+      await delay(MESSAGE_TIMEOUT)
+    }
+  }
+
   // public for tests only
   async commandCallback(
-    ctx: SimpleContext,
-    handler: (ctx: SimpleContext) => Promise<void>,
+    ctx: CommandMessageContext,
+    handler: (ctx: CommandMessageContext) => Promise<void>,
     needsAdminPermissions?: boolean
   ): Promise<void> {
     try {
@@ -89,7 +113,12 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
           command.length > queryCommand.type.length + 1
             ? command.substring(queryCommand.type.length + 1).split('_')
             : []
-        await queryCommand.handler(sessionContext, ...params)
+
+        if (queryCommand.handlerType === 'allow_global') {
+          await queryCommand.handler(sessionContext, this.sendMessage.bind(this), ...params)
+        } else {
+          await queryCommand.handler(sessionContext, ...params)
+        }
         if (queryCommand.chainCommand !== undefined) {
           startNewChain(sessionContext, queryCommand.chainCommand)
         }
@@ -154,7 +183,8 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   // public for tests only
   async textInputHandler<SessionData extends TextChainSessionData<ChainType>>(
     ctx: TextMessageContext,
-    chainActions: BotTextChainAction<ChainType, SessionData>[]
+    chainActions: BotTextChainAction<ChainType, SessionData>[],
+    fallback?: (ctx: TextMessageContext) => Promise<void>
   ): Promise<void> {
     try {
       const { id: userId } = ctx.from
@@ -164,7 +194,11 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
       const sessionData = sessionContext.session[userId] as SessionData
 
       if (sessionData == null || sessionData.type == null || sessionData.stageIndex == null) {
-        await ctx.reply(this.errors.unknownCommand)
+        if (fallback) {
+          await fallback(ctx)
+        } else {
+          await ctx.reply(this.errors.unknownCommand)
+        }
         return
       }
 
@@ -181,10 +215,11 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
   }
 
   setChainActions<SessionData extends TextChainSessionData<ChainType>>(
-    chainActions: BotTextChainAction<ChainType, SessionData>[]
+    chainActions: BotTextChainAction<ChainType, SessionData>[],
+    fallback?: (ctx: TextMessageContext) => Promise<void>
   ): WritingBot<QueryType, ChainType> {
     this.bot.on('text', async ctx => {
-      await this.textInputHandler(ctx, chainActions)
+      await this.textInputHandler(ctx, chainActions, fallback)
     })
     return this
   }

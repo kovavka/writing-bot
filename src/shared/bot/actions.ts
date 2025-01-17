@@ -1,16 +1,43 @@
-import { ContextWithSession, SimpleContext, TextMessageContext } from './context'
+import {
+  CallbackQueryContext,
+  CommandMessageContext,
+  ContextWithSession,
+  TextMessageContext,
+} from './context'
+import { InlineKeyboardButton } from '../copy/types'
 
 export type BotCommand = {
   command: string
   admin?: boolean
-  handler: (ctx: SimpleContext) => Promise<void>
+  handler: (ctx: CommandMessageContext) => Promise<void>
 }
 
-export type BotQueryAction<QueryType extends string, ChainType extends string> = {
-  type: QueryType
-  handler: (ctx: ContextWithSession, ...params: string[]) => Promise<void>
-  chainCommand?: ChainType
-}
+export type SendMessageType<QueryType extends string> = (
+  userIds: number[],
+  text: string,
+  buttons: InlineKeyboardButton<QueryType>[]
+) => Promise<void>
+
+export type BotQueryAction<QueryType extends string, ChainType extends string> =
+  | {
+      type: QueryType
+      handlerType?: 'generic'
+      handler: (
+        ctx: ContextWithSession<CallbackQueryContext>,
+        ...params: string[]
+      ) => Promise<void>
+      chainCommand?: ChainType
+    }
+  | {
+      type: QueryType
+      handlerType: 'allow_global'
+      handler: (
+        ctx: ContextWithSession<CallbackQueryContext>,
+        sendMessage: SendMessageType<QueryType>,
+        ...params: string[]
+      ) => Promise<void>
+      chainCommand?: ChainType
+    }
 
 export type TextChainSessionData<ChainType extends string> = {
   type: ChainType
