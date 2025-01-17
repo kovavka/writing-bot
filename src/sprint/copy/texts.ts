@@ -34,11 +34,11 @@ export const texts = {
   joinAfterStart: (reactionText: string, minutesLeft: number): string =>
     `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)}`,
   sprintStarted: (sprintNumber: number, minutesLeft: number, endTime: string): string =>
-    `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime} МСК)`,
+    `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${endTime})`,
   sprintFinished: (
     breakDuration: number,
     startTime: string
-  ): string => `Спринт закончился. Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${startTime} МСК).\n
+  ): string => `Спринт закончился. Следующий спринт начнётся через ${breakDuration} ${getWordForm(breakDuration, forms.inMinutes)} (в ${startTime}).\n
 A пока скажи, сколько слов теперь в твоём гримуаре?`,
   sprintFinishedLast: `Спринт закончился. Скажи, сколько слов теперь в твоём гримуаре?`,
   sprintResult: (sprintNumber: number, data: string): string =>

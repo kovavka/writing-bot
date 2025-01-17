@@ -5,7 +5,7 @@ import { texts } from '../copy/texts'
 import * as db from '../database'
 import { Event } from '../database/types'
 import { getToday, stringToDateTime } from '../../shared/date'
-import { ADMIN_ID, DATE_TIME_FORMAT } from '../../shared/variables'
+import { ADMIN_ID, DATE_TIME_FORMAT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
 import { buttons } from '../copy/buttons'
 import { Moment } from 'moment-timezone'
 import { delayUntil, formatTimeToMinutes } from '../time-utils'
@@ -167,7 +167,7 @@ async function startEvent(
 
   await sendMessage(
     userIds,
-    texts.eventStartingSoon(minutesLeft, formatTimeToMinutes(eventStartMoment)),
+    texts.eventStartingSoon(minutesLeft, eventStartMoment.format(TIME_FORMAT_OUTPUT)),
     [buttons.joinEvent(event.id)]
   )
 
