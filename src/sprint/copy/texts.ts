@@ -51,7 +51,9 @@ A пока скажи, сколько слов теперь в твоём гри
     data: string
   ): string =>
     `Статистика события
-Спринтов проведено: ${sprintsNumber}. Участников: ${usersNumber}. Всего слов написано: ${wordsTotal}.\n
+Спринтов проведено: ${sprintsNumber}
+Участников: ${usersNumber}
+Всего слов написано: ${wordsTotal}\n
 ${data}`,
   wordsUpdated: (wordsDiff: number): string =>
     `Отличная работа! Ты написала ${wordsDiff} ${getWordForm(wordsDiff, forms.words)}.\n
