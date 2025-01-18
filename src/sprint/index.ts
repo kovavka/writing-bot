@@ -23,7 +23,8 @@ async function startHandler(ctx: SimpleContext): Promise<void> {
 
   const user = GlobalSession.instance.users.find(x => x.id === userId)
   if (user == null) {
-    GlobalSession.instance.addUser(userId, `${first_name} ${last_name}`)
+    const userName = last_name === undefined ? first_name : `${first_name} ${last_name}`
+    GlobalSession.instance.addUser(userId, userName)
     welcomeText = texts.welcome
   } else {
     // todo add settings
