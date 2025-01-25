@@ -69,6 +69,14 @@ async function finishedEventsHandler(ctx: CommandMessageContext): Promise<void> 
   })
 }
 
+async function settingsHandler(ctx: SimpleContext): Promise<void> {
+  await ctx.reply(texts.settings, {
+    reply_markup: {
+      inline_keyboard: [[buttons.changeName]],
+    },
+  })
+}
+
 export const commands: BotCommand[] = [
   {
     command: 'status',
@@ -81,6 +89,10 @@ export const commands: BotCommand[] = [
   {
     command: 'words',
     handler: wordsHandler,
+  },
+  {
+    command: 'settings',
+    handler: settingsHandler,
   },
   {
     command: 'admin',

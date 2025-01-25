@@ -24,6 +24,10 @@ export const buttons = {
     text: 'Завершить',
     callback_data: `${MeowsQueryActionType.FinishEvent}_${eventId}`,
   }),
+  eventSchedule: (eventId: number): ButtonType => ({
+    text: 'Расписание',
+    callback_data: `${MeowsQueryActionType.EventSchedule}_${eventId}`,
+  }),
   joinEvent: (eventId: number): ButtonType => ({
     text: 'Присоединиться',
     callback_data: `${MeowsQueryActionType.JoinEvent}_${eventId}`,
@@ -36,4 +40,8 @@ export const buttons = {
     text: 'Вернуться',
     callback_data: `${MeowsQueryActionType.RejoinEvent}_${eventId}`,
   }),
+  changeName: <ButtonType>{
+    text: 'Изменить имя',
+    callback_data: MeowsQueryActionType.ChangeName,
+  },
 }

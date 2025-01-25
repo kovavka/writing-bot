@@ -16,7 +16,12 @@ import {
   SprintData,
   SprintResultData,
 } from '../global-session'
-import { DEFAULT_BREAK_DURATION, LONGER_BREAK_DURATION } from '../variables'
+import {
+  DEFAULT_BREAK_DURATION,
+  LONGER_BREAK_DURATION,
+  LUNCH_BREAK_AFTER,
+  LUNCH_BREAK_DURATION,
+} from '../variables'
 import { startNewChain } from '../../shared/bot/utils'
 import { errors } from '../copy/errors'
 import { getWordForm } from '../../shared/get-word-form'
@@ -77,6 +82,9 @@ function getActiveUserIds(): number[] {
 }
 
 function getCurrentBreakDuration(sprintIndex: number): number {
+  if (LUNCH_BREAK_AFTER.includes(sprintIndex + 1)) {
+    return LUNCH_BREAK_DURATION
+  }
   return sprintIndex % 3 === 2 ? LONGER_BREAK_DURATION : DEFAULT_BREAK_DURATION
 }
 
@@ -389,7 +397,13 @@ async function finishEventHandler(
 ): Promise<void> {
   const eventId = Number(eventIdStr)
 
-  GlobalSession.instance.eventData = undefined
+  if (
+    GlobalSession.instance.eventData !== undefined &&
+    GlobalSession.instance.eventData.eventId === eventId
+  ) {
+    GlobalSession.instance.eventData = undefined
+  }
+
   await db.updateEventStatus(eventId, 'finished')
   await ctx.reply(`Событие №${eventId} завершено`)
 }
@@ -413,11 +427,40 @@ async function selectEventHandler(
       reply_markup: {
         inline_keyboard: [
           [buttons.eventStat(eventId), buttons.finishEvent(eventId)],
+          [buttons.eventSchedule(eventId)],
           [buttons.startLatestSprint(eventId)],
         ],
       },
     })
   }
+}
+
+async function eventScheduleHandler(
+  ctx: ContextWithSession<CallbackQueryContext>,
+  eventIdStr: string
+): Promise<void> {
+  const eventId = Number(eventIdStr)
+  const event = await getEventById(eventId)
+
+  const scheduleList: string[] = []
+
+  let start = stringToDateTime(event.startDateTime)
+  for (let i = 0; i < event.sprintsNumber; i++) {
+    const end = start.clone().add(25, 'minutes')
+
+    const breakDuration = getCurrentBreakDuration(i)
+
+    let schedule = `${i >= 9 ? i + 1 : '0' + (i + 1)}. ${start.format('HH:mm')} - ${end.format('HH:mm')}`
+
+    if (i + 1 !== event.sprintsNumber) {
+      schedule += `, перерыв: ${breakDuration} минут`
+      start = end.clone().add(breakDuration, 'minutes')
+    }
+
+    scheduleList.push(schedule)
+  }
+
+  await ctx.reply(scheduleList.join('\n'))
 }
 
 async function startLatestSprintHandler(
@@ -543,8 +586,19 @@ export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[
     handler: selectEventHandler,
   },
   {
+    type: MeowsQueryActionType.EventSchedule,
+    handler: eventScheduleHandler,
+  },
+  {
     type: MeowsQueryActionType.StartLatestSprint,
     handlerType: 'allow_global',
     handler: startLatestSprintHandler,
+  },
+  {
+    type: MeowsQueryActionType.ChangeName,
+    handler: async (ctx: ContextWithSession): Promise<void> => {
+      await ctx.reply(texts.changeName)
+    },
+    chainCommand: MeowsTextChainType.ChangeName,
   },
 ]

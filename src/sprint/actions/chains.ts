@@ -57,7 +57,7 @@ async function eventSprintDurationHandler(
 
   await ctx.reply(texts.eventCreated(stringToDateTime(startDateTime)), {
     reply_markup: {
-      inline_keyboard: [[buttons.openEvent(id)]],
+      inline_keyboard: [[buttons.eventSchedule(id)], [buttons.openEvent(id)]],
     },
   })
 }
@@ -90,6 +90,23 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
   await replyWithCurrentState(ctx, GlobalSession.instance.eventData, texts.wordsSet)
 }
 
+async function changeUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
+  const { id: userId } = ctx.from
+
+  const user = GlobalSession.instance.users.find(x => x.id === userId)
+  if (user == null) {
+    // just in case
+    GlobalSession.instance.addUser(userId, userName)
+  } else {
+    user.name = userName
+    db.updateUser(userId, userName).catch((err: unknown) =>
+      GlobalSession.instance.sendError(err)
+    )
+  }
+
+  await ctx.reply(texts.userNameUpdated)
+}
+
 export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessionData>[] = [
   {
     type: MeowsTextChainType.CreateEvent,
@@ -114,6 +131,15 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessio
       {
         inputType: 'number',
         handler: wordsStartHandler,
+      },
+    ],
+  },
+  {
+    type: MeowsTextChainType.ChangeName,
+    stages: [
+      {
+        inputType: 'string',
+        handler: changeUserNameHandler,
       },
     ],
   },

@@ -1,6 +1,7 @@
 export enum MeowsTextChainType {
   CreateEvent = 'create_event',
   SetWordsStart = 'set_words_start',
+  ChangeName = 'change_name',
 }
 
 export enum MeowsQueryActionType {
@@ -10,9 +11,11 @@ export enum MeowsQueryActionType {
   EventStat = 'event_stat',
   StartLatestSprint = 'start_latest_sprint',
   FinishEvent = 'finish_event',
+  EventSchedule = 'event_schedule',
   JoinEvent = 'join_event',
   LeaveEvent = 'leave_event',
   RejoinEvent = 'rejoin_event',
+  ChangeName = 'change_name',
 }
 
 export type EventStatus = 'created' | 'open' | 'started' | 'finished'
