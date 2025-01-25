@@ -1,17 +1,20 @@
 import { ContextWithSession } from '../../shared/bot/context'
 import { texts } from '../copy/texts'
 import * as db from '../database'
-import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE, MARATHON_END_STR } from '../variables'
+import { DEFAULT_PROJECT_NAME } from '../variables'
 import { PeroTextChainType } from '../types'
 import { buttons } from '../copy/buttons'
-import { getToday, getTodayString } from '../../shared/date'
+import { getToday, getTodayString, stringToDate } from '../../shared/date'
 import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actions'
 import { getRemainingDays } from './shared'
+import { DATE_FORMAT } from '../../shared/variables'
 
 type BaseSessionData = TextChainSessionData<PeroTextChainType>
 
 export type NewProjectChainData = BaseSessionData & {
   projectName?: string
+  wordsStart?: number
+  deadline?: string
 }
 
 export type ProjectData = BaseSessionData & {
@@ -25,21 +28,42 @@ async function projectNameHandler(
   userInput: string,
   sessionData: NewProjectChainData
 ): Promise<void> {
-  await ctx.reply(texts.setStart)
   sessionData.projectName = userInput
+  await ctx.reply(texts.setStart)
 }
 
-async function createProjectCommand(
+async function wordsStartHandler(
   ctx: ContextWithSession,
-  projectName: string,
   wordsStart: number,
-  goal: number
+  sessionData: NewProjectChainData
 ): Promise<void> {
+  sessionData.wordsStart = wordsStart
+  await ctx.reply(texts.setDeadline)
+}
+
+async function projectDeadlineHandler(
+  ctx: ContextWithSession,
+  deadline: string,
+  sessionData: NewProjectChainData
+): Promise<void> {
+  sessionData.deadline = deadline
+  await ctx.reply(texts.setGoal)
+}
+
+async function wordsGoalHandler(
+  ctx: ContextWithSession,
+  wordsGoal: number,
+  sessionData: NewProjectChainData
+): Promise<void> {
+  const { projectName = DEFAULT_PROJECT_NAME, wordsStart = 0, deadline } = sessionData
+
   const { id: userId } = ctx.from
 
   const today = getToday()
-  const dateEnd = MARATHON_END_DATE
-  const dateEndStr = MARATHON_END_STR
+  const defaultEndDate = getToday().endOf('month')
+
+  const dateEnd = deadline !== undefined ? stringToDate(deadline) : defaultEndDate
+  const dateEndStr = deadline ?? defaultEndDate.format(DATE_FORMAT)
 
   const remainingDays = getRemainingDays(today, dateEnd)
 
@@ -49,26 +73,16 @@ async function createProjectCommand(
     getTodayString(),
     dateEndStr,
     wordsStart,
-    goal
+    wordsGoal
   )
 
-  const dailyGoal = Math.ceil(goal / remainingDays)
-  await ctx.reply(texts.projectCreated(wordsStart + goal, remainingDays, dailyGoal), {
+  const dailyGoal = Math.ceil(wordsGoal / remainingDays)
+  await ctx.reply(texts.projectCreated(wordsStart + wordsGoal, remainingDays, dailyGoal), {
     parse_mode: 'Markdown',
     reply_markup: {
       inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
     },
   })
-}
-
-async function wordsStartHandler(
-  ctx: ContextWithSession,
-  words: number,
-  sessionData: NewProjectChainData
-): Promise<void> {
-  const { projectName = DEFAULT_PROJECT_NAME } = sessionData
-  //todo remove after enabling custom goal
-  await createProjectCommand(ctx, projectName, words, 50000)
 }
 
 async function editProjectGoalHandler(
@@ -81,17 +95,17 @@ async function editProjectGoalHandler(
     return Promise.reject('ProjectId is undefined')
   }
 
-  await db.updateProjectGoal(projectId, goal)
-
-  const today = getToday()
-  const dateEnd = MARATHON_END_DATE
-
-  const remainingDays = getRemainingDays(today, dateEnd)
-
   const project = await db.getProject(projectId)
   if (project === undefined) {
     return Promise.reject(`Project is undefined, projectId = ${projectId}`)
   }
+
+  await db.updateProjectGoal(projectId, goal)
+
+  const today = getToday()
+  const dateEnd = stringToDate(project.dateEnd)
+
+  const remainingDays = getRemainingDays(today, dateEnd)
 
   const dailyGoal = Math.ceil(goal / remainingDays)
 
@@ -193,14 +207,20 @@ export const textInputCommands: BotTextChainAction<PeroTextChainType, AnySession
     type: PeroTextChainType.NewProject,
     stages: [
       {
-        // project name
         inputType: 'string',
         handler: projectNameHandler,
       },
       {
-        // words start
         inputType: 'number',
         handler: wordsStartHandler,
+      },
+      {
+        inputType: 'string',
+        handler: projectDeadlineHandler,
+      },
+      {
+        inputType: 'number',
+        handler: wordsGoalHandler,
       },
     ],
   },
