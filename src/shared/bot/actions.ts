@@ -5,6 +5,7 @@ import {
   TextMessageContext,
 } from './context'
 import { InlineKeyboardButton } from '../copy/types'
+import { Moment } from 'moment-timezone'
 
 export type BotCommand = {
   command: string
@@ -58,6 +59,14 @@ type ChainStage<SessionData> =
       handler: (
         ctx: ContextWithSession<TextMessageContext>,
         userInput: string,
+        sessionData: SessionData
+      ) => Promise<void>
+    }
+  | {
+      inputType: 'date'
+      handler: (
+        ctx: ContextWithSession<TextMessageContext>,
+        userInput: Moment,
         sessionData: SessionData
       ) => Promise<void>
     }

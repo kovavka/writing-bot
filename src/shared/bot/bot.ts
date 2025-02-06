@@ -1,4 +1,4 @@
-import { ADMIN_ID } from '../variables'
+import { ADMIN_ID, DATE_FORMAT, TIME_ZONE } from '../variables'
 import {
   CallbackQueryContext,
   CommandMessageContext,
@@ -9,10 +9,11 @@ import {
 import { Context, session, Telegraf, Markup } from 'telegraf'
 import { Update } from 'telegraf/typings/core/types/typegram'
 import { callbackQuery } from 'telegraf/filters'
-import { initSession, isValidNumber, isValidString, startNewChain } from './utils'
+import { initSession, isValidDate, isValidNumber, isValidString, startNewChain } from './utils'
 import { BotCommand, BotQueryAction, BotTextChainAction, TextChainSessionData } from './actions'
 import { ErrorMessage, InlineKeyboardButton } from '../copy/types'
 import { delay } from '../delay'
+import moment from 'moment-timezone'
 
 const MESSAGE_TIMEOUT = 1000
 
@@ -163,6 +164,14 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
 
       const value = Number(userInput)
       await currentStage.handler(ctx, value, sessionData)
+    } else if (currentStage.inputType === 'date') {
+      if (!isValidDate(userInput)) {
+        await ctx.reply(this.errors.dateInvalid)
+        return
+      }
+
+      const date = moment.tz(userInput, DATE_FORMAT, TIME_ZONE)
+      await currentStage.handler(ctx, date, sessionData)
     } else {
       if (!isValidString(userInput)) {
         await ctx.reply(this.errors.stringInvalid)

@@ -6,6 +6,7 @@ export const errors = {
   unknownCommand: 'unknownCommand',
   stringInvalid: 'stringInvalid',
   numberInvalid: 'numberInvalid',
+  dateInvalid: 'dateInvalid',
   generic: 'generic',
 }
 

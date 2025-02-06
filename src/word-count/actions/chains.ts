@@ -8,13 +8,14 @@ import { getToday, getTodayString, stringToDate } from '../../shared/date'
 import { BotTextChainAction, TextChainSessionData } from '../../shared/bot/actions'
 import { getRemainingDays } from './shared'
 import { DATE_FORMAT } from '../../shared/variables'
+import { Moment } from 'moment-timezone'
 
 type BaseSessionData = TextChainSessionData<PeroTextChainType>
 
 export type NewProjectChainData = BaseSessionData & {
   projectName?: string
   wordsStart?: number
-  deadline?: string
+  deadline?: Moment
 }
 
 export type ProjectData = BaseSessionData & {
@@ -38,12 +39,12 @@ async function wordsStartHandler(
   sessionData: NewProjectChainData
 ): Promise<void> {
   sessionData.wordsStart = wordsStart
-  await ctx.reply(texts.setDeadline)
+  await ctx.reply(texts.setDeadline, { parse_mode: 'Markdown' })
 }
 
 async function projectDeadlineHandler(
   ctx: ContextWithSession,
-  deadline: string,
+  deadline: Moment,
   sessionData: NewProjectChainData
 ): Promise<void> {
   sessionData.deadline = deadline
@@ -62,8 +63,8 @@ async function wordsGoalHandler(
   const today = getToday()
   const defaultEndDate = getToday().endOf('month')
 
-  const dateEnd = deadline !== undefined ? stringToDate(deadline) : defaultEndDate
-  const dateEndStr = deadline ?? defaultEndDate.format(DATE_FORMAT)
+  const dateEnd = deadline !== undefined ? deadline : defaultEndDate
+  const dateEndStr = dateEnd.format(DATE_FORMAT)
 
   const remainingDays = getRemainingDays(today, dateEnd)
 
@@ -215,7 +216,7 @@ export const textInputCommands: BotTextChainAction<PeroTextChainType, AnySession
         handler: wordsStartHandler,
       },
       {
-        inputType: 'string',
+        inputType: 'date',
         handler: projectDeadlineHandler,
       },
       {

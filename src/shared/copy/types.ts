@@ -7,5 +7,6 @@ export type ErrorMessage = {
   unknownCommand: string
   stringInvalid: string
   numberInvalid: string
+  dateInvalid: string
   generic: string
 }
