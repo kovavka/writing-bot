@@ -1,4 +1,4 @@
-import { ADMIN_ID, DATE_FORMAT, TIME_ZONE } from '../variables'
+import { ADMIN_ID, DATE_FORMAT_INPUT, TIME_ZONE } from '../variables'
 import {
   CallbackQueryContext,
   CommandMessageContext,
@@ -14,6 +14,7 @@ import { BotCommand, BotQueryAction, BotTextChainAction, TextChainSessionData } 
 import { ErrorMessage, InlineKeyboardButton } from '../copy/types'
 import { delay } from '../delay'
 import moment from 'moment-timezone'
+import { getToday } from '../date'
 
 const MESSAGE_TIMEOUT = 1000
 
@@ -170,7 +171,12 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
         return
       }
 
-      const date = moment.tz(userInput, DATE_FORMAT, TIME_ZONE)
+      const date = moment.tz(userInput, DATE_FORMAT_INPUT, TIME_ZONE)
+      if (date < getToday()) {
+        await ctx.reply(this.errors.datePast)
+        return
+      }
+
       await currentStage.handler(ctx, date, sessionData)
     } else {
       if (!isValidString(userInput)) {

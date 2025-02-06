@@ -1,7 +1,6 @@
 import { ContextWithSession, SimpleContext } from './context'
 import { TextChainSessionData } from './actions'
-import { DATE_FORMAT, TIME_ZONE } from '../../shared/variables'
-import { getToday } from '../../shared/date'
+import { DATE_FORMAT_INPUT, TIME_ZONE } from '../../shared/variables'
 
 import moment from 'moment-timezone'
 
@@ -28,13 +27,13 @@ export function isValidNumber(userInput: string): boolean {
 }
 
 export function isValidDate(userInput: string): boolean {
-  if (!/^20\d\d-\d\d-\d\d$/.test(userInput)) {
+  if (!/^\d\d.\d\d.\d\d$/.test(userInput)) {
     return false
   }
 
-  const date = moment.tz(userInput, DATE_FORMAT, TIME_ZONE)
+  const date = moment.tz(userInput, DATE_FORMAT_INPUT, TIME_ZONE)
 
-  return date.isValid() && date > getToday()
+  return date.isValid()
 }
 
 export function initSession<T extends SimpleContext>(ctx: T): ContextWithSession<T> {

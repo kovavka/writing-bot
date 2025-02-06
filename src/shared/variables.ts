@@ -20,5 +20,6 @@ export const TIME_ZONE = 'Europe/Moscow'
 export const DATE_FORMAT = 'YYYY-MM-DD'
 export const DATE_TIME_FORMAT = 'YYYY-MM-DD HH:mm'
 
+export const DATE_FORMAT_INPUT = 'DD.MM.YY'
 export const DATE_FORMAT_OUTPUT = 'DD.MM.YYYY'
 export const TIME_FORMAT_OUTPUT = 'HH:mm'

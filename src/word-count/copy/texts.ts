@@ -1,6 +1,6 @@
 import { getWordForm } from '../../shared/get-word-form'
 import { forms } from '../../shared/copy/forms'
-import { DATE_FORMAT } from '../../shared/variables'
+import { DATE_FORMAT_INPUT } from '../../shared/variables'
 
 export const texts = {
   help: `Ууху я - Перо, самый умный фамильяр. Буду записывать твой прогресс, ни одно слово не упущу, так и знай! Ухуу!`,
@@ -10,7 +10,7 @@ export const texts = {
   welcomeBack: (name: string): string => `С возвращением, ${name}!`,
   setName: `Как будет называться твоя волшебная книга?`,
   setStart: `Угу... Хорошее имя, ведьмочка! Теперь, сколько слов у тебя уже есть?\nОбрати внимание, ведьма, СЛОВ, а не знаков. Если ещё только начинаешь своё заклинание, пиши 0`,
-  setDeadline: `Когда ты хочешь закончить рукопись?\nВведи дату в формате \`${DATE_FORMAT}\``,
+  setDeadline: `Когда ты хочешь закончить рукопись?\nВведи дату в формате \`${DATE_FORMAT_INPUT}\``,
   setGoal: `Сколько слов ты хочешь написать за это время?`,
   projectCreated: (
     finalWords: number,

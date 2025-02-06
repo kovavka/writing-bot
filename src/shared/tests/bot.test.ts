@@ -7,6 +7,7 @@ export const errors = {
   stringInvalid: 'stringInvalid',
   numberInvalid: 'numberInvalid',
   dateInvalid: 'dateInvalid',
+  datePast: 'datePast',
   generic: 'generic',
 }
 

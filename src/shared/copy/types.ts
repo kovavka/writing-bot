@@ -8,5 +8,6 @@ export type ErrorMessage = {
   stringInvalid: string
   numberInvalid: string
   dateInvalid: string
+  datePast: string
   generic: string
 }
