@@ -1,6 +1,10 @@
 import { getWordForm } from '../../shared/get-word-form'
 import { forms } from '../../shared/copy/forms'
-import { DATE_FORMAT_OUTPUT, TIME_FORMAT_OUTPUT } from '../../shared/variables'
+import {
+  DATE_FORMAT_OUTPUT,
+  DATE_TIME_FORMAT,
+  TIME_FORMAT_OUTPUT,
+} from '../../shared/variables'
 import { Moment } from 'moment-timezone'
 import { formatTimeToMinutes } from '../time-utils'
 
@@ -12,7 +16,7 @@ export const texts = {
   changeName: `Какое имя ты хочешь взять?`,
   userNameUpdated: `Приятно познакомиться!`,
   admin: 'Вот список доступных команд для админа',
-  setEventDateTime: 'Введи дату и время начала спринта в формате YYYY-MM-DD HH:MM',
+  setEventDateTime: `Введи дату и время начала спринта в формате ${DATE_TIME_FORMAT}`,
   setEventSprintsNumber: 'Введи количество спринтов',
   setEventSprintDuration: 'Введи длительность спринта в минутах',
   eventCreated: (date: Moment): string =>

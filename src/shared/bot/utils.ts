@@ -1,5 +1,9 @@
 import { ContextWithSession, SimpleContext } from './context'
 import { TextChainSessionData } from './actions'
+import { DATE_FORMAT, TIME_ZONE } from '../../shared/variables'
+import { getToday } from '../../shared/date'
+
+import moment from 'moment-timezone'
 
 export function startNewChain<T extends string>(ctx: ContextWithSession, type: T): void {
   const { id: userId } = ctx.from
@@ -14,7 +18,6 @@ export function isValidString(userInput: string): boolean {
   return userInput.length > 0 && !/('|--|;)/.test(userInput)
 }
 
-// todo check max value
 export function isValidNumber(userInput: string): boolean {
   return (
     userInput.length > 0 &&
@@ -22,6 +25,16 @@ export function isValidNumber(userInput: string): boolean {
     /^\d+$/.test(userInput) &&
     !isNaN(Number(userInput))
   )
+}
+
+export function isValidDate(userInput: string): boolean {
+  if (!/^20\d\d-\d\d-\d\d$/.test(userInput)) {
+    return false
+  }
+
+  const date = moment.tz(userInput, DATE_FORMAT, TIME_ZONE)
+
+  return date.isValid() && date > getToday()
 }
 
 export function initSession<T extends SimpleContext>(ctx: T): ContextWithSession<T> {
