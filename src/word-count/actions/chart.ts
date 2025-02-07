@@ -2,21 +2,28 @@ import QuickChart from 'quickchart-js'
 
 export function getChart(
   numberOfDays: number,
-  data: number[],
+  daysData: number[],
   wordsStart: number,
   wordsEnd: number
 ): Promise<Buffer> {
   const chart = new QuickChart()
 
+  const useWeeks = numberOfDays > 100
+  const dataStep = useWeeks ? 7 : 1
+  const pointsLength = useWeeks ? Math.ceil(numberOfDays / dataStep) + 1 : numberOfDays
+
   const expectedData = []
+  const actualData = []
   const labels = []
 
-  const dayStep = Math.ceil((wordsEnd - wordsStart) / numberOfDays)
+  const dayWordsStep = Math.ceil((wordsEnd - wordsStart) / numberOfDays)
   const chartStep = Math.ceil((wordsEnd - wordsStart) / 2)
 
-  for (let i = 0; i < numberOfDays; i++) {
-    const value = wordsStart + dayStep * (i + 1)
+  for (let i = 0; i < pointsLength; i++) {
+    const dayIndex = i * dataStep > numberOfDays ? numberOfDays : i * dataStep
+    const value = wordsStart + dayWordsStep * (dayIndex + 1)
     expectedData[i] = value > wordsEnd ? wordsEnd : value
+    actualData[i] = daysData[dayIndex]
     labels[i] = i + 1
   }
 
@@ -52,7 +59,7 @@ export function getChart(
             borderDash: [0, 0],
             barPercentage: 0.9,
             categoryPercentage: 0.8,
-            data: data,
+            data: actualData,
             type: 'bar',
             label: 'Dataset 1',
             borderColor: '',
