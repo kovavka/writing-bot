@@ -6,7 +6,7 @@ import { errors } from '../copy/errors'
 import { buttons } from '../copy/buttons'
 import { getToday } from '../../shared/date'
 
-async function saveSprintUserResult(
+export async function saveSprintUserResult(
   userId: number,
   sprintId: number,
   startWords: number,
@@ -50,12 +50,18 @@ export async function sprintFinalWordsHandler(
     await ctx.reply(texts.eventIsAlreadyFinished)
   } else {
     let prevWords: number | undefined
-    for (let i = sprintIndex - 1; i >= 0; i--) {
-      const sprint = GlobalSession.instance.eventData.sprints[i]
-      const result = sprint.results[userId]
-      if (result !== undefined) {
-        prevWords = result.finalWords
-        break
+
+    const currentSprintResult = currentSprint.results[userId]
+    if (currentSprintResult !== undefined) {
+      prevWords = currentSprintResult.startWords
+    } else {
+      for (let i = sprintIndex - 1; i >= 0; i--) {
+        const sprint = GlobalSession.instance.eventData.sprints[i]
+        const result = sprint.results[userId]
+        if (result !== undefined) {
+          prevWords = result.finalWords
+          break
+        }
       }
     }
 
@@ -95,7 +101,15 @@ export async function replyWithCurrentState(
 
   if (sprintStatus === 'sprint') {
     // sprint is already started
-    await ctx.reply(texts.joinAfterStart(reactionText, minutesLeft, nextStageMoment))
+
+    const { sprintIndex, sprints } = eventData
+    const currentSprint = sprints[sprintIndex]
+
+    await ctx.reply(texts.joinAfterStart(reactionText, minutesLeft, nextStageMoment), {
+      reply_markup: {
+        inline_keyboard: [[buttons.setSprintWordsStart(currentSprint.id)]],
+      },
+    })
   } else {
     // break between sprints
     await ctx.reply(texts.joinBeforeStart(reactionText, minutesLeft, nextStageMoment))

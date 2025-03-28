@@ -39,9 +39,18 @@ export const texts = {
   joinBeforeStart: (reactionText: string, minutesLeft: number, startMoment: Moment): string =>
     `${reactionText} Спринт начнётся через ${minutesLeft} ${getWordForm(minutesLeft, forms.inMinutes)} (в ${formatTimeToMinutes(startMoment)})`,
   joinAfterStart: (reactionText: string, minutesLeft: number, endMoment: Moment): string =>
-    `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${formatTimeToMinutes(endMoment)})`,
+    `${reactionText} Спринт уже начался. У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${formatTimeToMinutes(endMoment)}).\n
+Если хочешь переключиться на новую главу/проект, можешь указать новый стартовый объём слов, нажав на кнопку`,
   sprintStarted: (sprintNumber: number, minutesLeft: number, endMoment: Moment): string =>
     `Спринт #${sprintNumber} начался! У тебя ${minutesLeft} ${getWordForm(minutesLeft, forms.minutes)} (до ${formatTimeToMinutes(endMoment)})`,
+  sprintStartedWithButton: (
+    sprintNumber: number,
+    minutesLeft: number,
+    endMoment: Moment
+  ): string =>
+    `${texts.sprintStarted(sprintNumber, minutesLeft, endMoment)}.\n
+Если хочешь переключиться на новую главу/проект, можешь указать новый стартовый объём слов, нажав на кнопку`,
+  sprintStartWordsSet: 'Отлично, можешь продолжать!',
   sprintFinished: (
     breakDuration: number,
     startMoment: Moment
@@ -71,5 +80,6 @@ ${data}`,
     'Ты больше не будешь получать уведомления о спринтах в текущем событии. Ты сможешь вернуться в любой момент, пока идёт событие',
   eventIsAlreadyFinished:
     'Прости, событие уже закончилось. Я напишу тебе, когда мы запланируем новое',
+  sprintIsAlreadyFinished: 'Прости, этот спринт уже закончился',
   settings: `Чем я могу тебе помочь?`,
 }

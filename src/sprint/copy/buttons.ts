@@ -40,6 +40,10 @@ export const buttons = {
     text: 'Вернуться',
     callback_data: `${MeowsQueryActionType.RejoinEvent}_${eventId}`,
   }),
+  setSprintWordsStart: (sprintId: number): ButtonType => ({
+    text: 'Ввести новый объём',
+    callback_data: `${MeowsQueryActionType.SetSprintWordsStart}_${sprintId}`,
+  }),
   changeName: <ButtonType>{
     text: 'Изменить имя',
     callback_data: MeowsQueryActionType.ChangeName,

@@ -7,7 +7,7 @@ import { buttons } from '../copy/buttons'
 import { stringToDateTime } from '../../shared/date'
 import { GlobalSession } from '../global-session'
 import { errors } from '../copy/errors'
-import { replyWithCurrentState } from './shared'
+import { replyWithCurrentState, saveSprintUserResult } from './shared'
 
 type BaseSessionData = TextChainSessionData<MeowsTextChainType>
 
@@ -90,6 +90,35 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
   await replyWithCurrentState(ctx, GlobalSession.instance.eventData, texts.wordsSet)
 }
 
+async function sprintWordsStartHandler(ctx: ContextWithSession, words: number): Promise<void> {
+  const { id: userId } = ctx.from
+
+  if (GlobalSession.instance.eventData === undefined) {
+    await ctx.reply(errors.unknownCommand)
+    return
+  }
+
+  const { eventStatus, sprintStatus, sprints, sprintIndex } = GlobalSession.instance.eventData
+
+  if (eventStatus === 'finished' || sprintStatus === 'lastSprintFinished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const currentSprint = sprints[sprintIndex]
+
+  currentSprint.results[userId] = {
+    startWords: words,
+    finalWords: 0,
+    diff: 0,
+  }
+
+  // no need to wait here
+  saveSprintUserResult(userId, currentSprint.id, words, 0)
+
+  await ctx.reply(texts.sprintStartWordsSet)
+}
+
 async function changeUserNameHandler(ctx: ContextWithSession, userName: string): Promise<void> {
   const { id: userId } = ctx.from
 
@@ -131,6 +160,15 @@ export const textInputCommands: BotTextChainAction<MeowsTextChainType, AnySessio
       {
         inputType: 'number',
         handler: wordsStartHandler,
+      },
+    ],
+  },
+  {
+    type: MeowsTextChainType.SetSprintWordsStart,
+    stages: [
+      {
+        inputType: 'number',
+        handler: sprintWordsStartHandler,
       },
     ],
   },

@@ -117,11 +117,19 @@ async function runSprints(
     eventData.sprintStatus = 'sprint'
     eventData.nextStageMoment = sprintEndMoment
 
-    await sendMessage(
-      getActiveUserIds(),
-      texts.sprintStarted(i + 1, sprintDuration, sprintEndMoment),
-      []
-    )
+    if (i === 0) {
+      await sendMessage(
+        getActiveUserIds(),
+        texts.sprintStarted(i + 1, sprintDuration, sprintEndMoment),
+        []
+      )
+    } else {
+      await sendMessage(
+        getActiveUserIds(),
+        texts.sprintStartedWithButton(i + 1, sprintDuration, sprintEndMoment),
+        [buttons.setSprintWordsStart(sprintId)]
+      )
+    }
 
     await delayUntil(sprintEndMoment)
     // sprint just finished
@@ -350,6 +358,34 @@ async function rejoinEventHandler(
 
   // save to db as a backup
   await db.updateEventUser(userId, eventId, 1)
+}
+
+async function setSprintWordsStartHandler(
+  ctx: ContextWithSession<CallbackQueryContext>,
+  sprintIdStr: string
+): Promise<void> {
+  const sprintId = Number(sprintIdStr)
+
+  if (GlobalSession.instance.eventData === undefined) {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const { eventStatus, sprintStatus } = GlobalSession.instance.eventData
+
+  if (eventStatus === 'finished' || sprintStatus === 'lastSprintFinished') {
+    await ctx.reply(texts.eventIsAlreadyFinished)
+    return
+  }
+
+  const { sprints, sprintIndex } = GlobalSession.instance.eventData
+  const currentSprint = sprints[sprintIndex]
+  if (currentSprint.id !== sprintId) {
+    await ctx.reply(texts.sprintIsAlreadyFinished)
+    return
+  }
+
+  await ctx.reply(texts.setWordsStart)
 }
 
 async function eventStatisticsHandler(
@@ -581,6 +617,11 @@ export const queryMap: BotQueryAction<MeowsQueryActionType, MeowsTextChainType>[
   {
     type: MeowsQueryActionType.RejoinEvent,
     handler: rejoinEventHandler,
+  },
+  {
+    type: MeowsQueryActionType.SetSprintWordsStart,
+    handler: setSprintWordsStartHandler,
+    chainCommand: MeowsTextChainType.SetSprintWordsStart,
   },
   {
     type: MeowsQueryActionType.EventStat,
