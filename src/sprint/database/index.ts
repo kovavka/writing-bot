@@ -153,12 +153,13 @@ export function updateEventStatus(id: number, status: EventStatus): Promise<void
 export function createEventUser(
   userId: number,
   eventId: number,
-  active?: 0 | 1
+  active?: 0 | 1,
+  startWords?: number
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     db.run(
       `INSERT INTO EventUser (userId, eventId, active, startWords) VALUES (?, ?, ?, ?)`,
-      [userId, eventId, active, 0],
+      [userId, eventId, active, startWords],
       (err: Error | null) => {
         if (err) {
           reject(err)
@@ -170,24 +171,12 @@ export function createEventUser(
   })
 }
 
-export function updateEventUser(
-  userId: number,
-  eventId: number,
-  active: 0 | 1,
-  startWords?: number
-): Promise<void> {
-  if (startWords === undefined) {
-    return update(`UPDATE EventUser SET active = ? WHERE userId = ? AND eventId = ?`, [
-      active,
-      userId,
-      eventId,
-    ])
-  }
-
-  return update(
-    `UPDATE EventUser SET active = ?, startWords = ? WHERE userId = ? AND eventId = ?`,
-    [active, startWords, userId, eventId]
-  )
+export function updateEventUser(userId: number, eventId: number, active: 0 | 1): Promise<void> {
+  return update(`UPDATE EventUser SET active = ? WHERE userId = ? AND eventId = ?`, [
+    active,
+    userId,
+    eventId,
+  ])
 }
 
 export function getEventUsers(eventId: number, active?: 0 | 1): Promise<EventUser[]> {

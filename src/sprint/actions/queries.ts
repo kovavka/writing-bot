@@ -202,6 +202,20 @@ async function startEvent(
   )
 }
 
+async function openEvent(
+  event: Event,
+  sendMessage: SendMessageType<MeowsQueryActionType>
+): Promise<void> {
+  const eventStartMoment = stringToDateTime(event.startDateTime)
+  const notificationMoment = eventStartMoment.subtract(40, 'minutes')
+
+  await delayUntil(notificationMoment)
+
+  await sendMessage([Number(ADMIN_ID)], texts.eventNotificationStarted, [])
+
+  await startEvent(event, sendMessage)
+}
+
 export async function getEventById(eventId: number): Promise<Event> {
   const event = await db.getEvent(eventId)
 
@@ -219,14 +233,11 @@ async function openEventHandler(
 ): Promise<void> {
   const eventId = Number(eventIdStr)
 
-  await ctx.reply(texts.eventNotificationStarted)
-
+  await ctx.reply(texts.adminEventOpened)
   const event = await getEventById(eventId)
 
   // should run in background, never use await here
-  startEvent(event, sendMessage)
-
-  await ctx.reply(texts.adminEventOpened)
+  openEvent(event, sendMessage)
 }
 
 async function joinEventHandler(
@@ -254,8 +265,6 @@ async function joinEventHandler(
   const participant = GlobalSession.instance.eventData.participants[userId]
 
   if (participant === undefined) {
-    // todo maybe move to text chain
-    await db.createEventUser(userId, eventId, 1)
     await ctx.reply(texts.setWordsStart)
 
     startNewChain(ctx, MeowsTextChainType.SetWordsStart)

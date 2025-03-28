@@ -83,9 +83,9 @@ async function wordsStartHandler(ctx: ContextWithSession, words: number): Promis
     active: true,
   }
 
-  db.updateEventUser(userId, eventId, 1, words).catch((err: unknown) =>
-    GlobalSession.instance.sendError(err)
-  )
+  await db
+    .createEventUser(userId, eventId, 1, words)
+    .catch((err: unknown) => GlobalSession.instance.sendError(err))
 
   await replyWithCurrentState(ctx, GlobalSession.instance.eventData, texts.wordsSet)
 }

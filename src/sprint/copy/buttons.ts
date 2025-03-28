@@ -9,7 +9,7 @@ export const buttons = {
     callback_data: MeowsQueryActionType.CreateEvent,
   },
   openEvent: (eventId: number): ButtonType => ({
-    text: 'Оповестить',
+    text: 'Открыть событие',
     callback_data: `${MeowsQueryActionType.OpenEvent}_${eventId}`,
   }),
   eventStat: (eventId: number): ButtonType => ({
