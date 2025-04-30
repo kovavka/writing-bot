@@ -144,7 +144,7 @@ export const commands: BotCommand[] = [
     handler: newProjectHandler,
   },
   {
-    command: 'writeUp',
+    command: 'writeup',
     handler: newWriteUpProjectHandler,
   },
   {
