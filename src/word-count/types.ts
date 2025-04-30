@@ -1,5 +1,6 @@
 export enum PeroTextChainType {
   NewProject = 'new_project',
+  NewMarathonProject = 'new_marathon_project',
   EditGoal = 'edit_goal',
   RenameProject = 'rename_project',
   UpdateWords = 'update_words',

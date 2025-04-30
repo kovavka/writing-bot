@@ -13,6 +13,7 @@ export type Project = {
   wordsGoal: number
   hidden: number
   hiddenDate: number
+  isMarathon: number
 }
 
 export type DayResult = {

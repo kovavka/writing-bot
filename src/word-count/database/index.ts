@@ -76,12 +76,13 @@ export function createProject(
   dateStart: string,
   dateEnd: string,
   wordsStart: number,
-  wordsGoal: number
+  wordsGoal: number,
+  isMarathon: 0 | 1
 ): Promise<number> {
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT INTO Project (userId, name, dateStart, dateEnd, wordsStart, wordsGoal) VALUES (?, ?, ?, ?, ?, ?)`,
-      [userId, name, dateStart, dateEnd, wordsStart, wordsGoal],
+      `INSERT INTO Project (userId, name, dateStart, dateEnd, wordsStart, wordsGoal, isMarathon) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, name, dateStart, dateEnd, wordsStart, wordsGoal, isMarathon],
       function (err: Error | null) {
         if (err) {
           reject(err)
@@ -303,7 +304,7 @@ LEFT JOIN (
         WHERE dr1.projectId = dr2.projectId
     )
 ) dr ON p.id = dr.projectId
-WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0;
+WHERE p.dateStart >= ? AND p.dateEnd <= ? AND p.hidden = 0 AND p.isMarathon = 1;
 `,
       [projectStart, projectEnd],
       (err: Error | null, rows: FullStatData[]) => {
@@ -346,7 +347,7 @@ LEFT JOIN (
         WHERE res1.projectId = res2.projectId AND res2.date < ?
     )
 ) dr2 ON dr1.projectId = dr2.projectId
-WHERE dr1.date = ?
+WHERE dr1.date = ? AND p.isMarathon = 1
 `,
       [resultDate, resultDate],
       (err: Error | null, rows: TodayStatData[]) => {

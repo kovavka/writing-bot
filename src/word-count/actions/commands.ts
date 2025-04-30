@@ -8,6 +8,8 @@ import { MARATHON_END_STR } from '../variables'
 import { getToday } from '../../shared/date'
 import { buttons } from '../copy/buttons'
 import { BotCommand } from '../../shared/bot/actions'
+import { initSession, startNewChain } from '../../shared/bot/utils'
+import { PeroTextChainType } from '../types'
 
 async function statusHandler(ctx: SimpleContext): Promise<void> {
   const time = getToday().tz(TIME_ZONE).format('HH:mm:ss')
@@ -21,6 +23,18 @@ async function helpHandler(ctx: SimpleContext): Promise<void> {
       inline_keyboard: [[buttons.newProject, buttons.allProjects]],
     },
   })
+}
+
+async function newProjectHandler(ctx: SimpleContext): Promise<void> {
+  await ctx.reply(texts.setName)
+  const sessionContext = initSession(ctx)
+  startNewChain(sessionContext, PeroTextChainType.NewProject)
+}
+
+async function newWriteUpProjectHandler(ctx: SimpleContext): Promise<void> {
+  await ctx.reply(texts.setName)
+  const sessionContext = initSession(ctx)
+  startNewChain(sessionContext, PeroTextChainType.NewMarathonProject)
 }
 
 async function settingsHandler(ctx: SimpleContext): Promise<void> {
@@ -76,7 +90,8 @@ async function adminStatTodayHandler(ctx: SimpleContext): Promise<void> {
 }
 
 async function adminStatHandler(ctx: SimpleContext): Promise<void> {
-  const dateFrom = '2024-12-20'
+  // todo move to config?
+  const dateFrom = '2025-04-30'
 
   const rows = await db.getStatistics(dateFrom, MARATHON_END_STR)
 
@@ -123,6 +138,14 @@ export const commands: BotCommand[] = [
   {
     command: 'help',
     handler: helpHandler,
+  },
+  {
+    command: 'new',
+    handler: newProjectHandler,
+  },
+  {
+    command: 'writeUp',
+    handler: newWriteUpProjectHandler,
   },
   {
     command: 'settings',

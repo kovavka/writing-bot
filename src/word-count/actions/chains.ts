@@ -1,7 +1,7 @@
 import { ContextWithSession } from '../../shared/bot/context'
 import { texts } from '../copy/texts'
 import * as db from '../database'
-import { DEFAULT_PROJECT_NAME } from '../variables'
+import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from '../variables'
 import { PeroTextChainType } from '../types'
 import { buttons } from '../copy/buttons'
 import { getToday, getTodayString, stringToDate } from '../../shared/date'
@@ -42,6 +42,16 @@ async function wordsStartHandler(
   await ctx.reply(texts.setDeadline, { parse_mode: 'Markdown' })
 }
 
+async function marathonWordsStartHandler(
+  ctx: ContextWithSession,
+  wordsStart: number,
+  sessionData: NewProjectChainData
+): Promise<void> {
+  const { projectName = DEFAULT_PROJECT_NAME } = sessionData
+
+  await createNewProject(ctx, projectName, wordsStart, 50000, MARATHON_END_DATE, true)
+}
+
 async function projectDeadlineHandler(
   ctx: ContextWithSession,
   deadline: Moment,
@@ -51,19 +61,17 @@ async function projectDeadlineHandler(
   await ctx.reply(texts.setGoal)
 }
 
-async function wordsGoalHandler(
+async function createNewProject(
   ctx: ContextWithSession,
+  projectName: string,
+  wordsStart: number,
   wordsGoal: number,
-  sessionData: NewProjectChainData
+  dateEnd: Moment,
+  isMarathon: boolean = false
 ): Promise<void> {
-  const { projectName = DEFAULT_PROJECT_NAME, wordsStart = 0, deadline } = sessionData
-
   const { id: userId } = ctx.from
 
   const today = getToday()
-  const defaultEndDate = getToday().endOf('month')
-
-  const dateEnd = deadline !== undefined ? deadline : defaultEndDate
   const dateEndStr = dateEnd.format(DATE_FORMAT)
 
   const remainingDays = getRemainingDays(today, dateEnd)
@@ -74,7 +82,8 @@ async function wordsGoalHandler(
     getTodayString(),
     dateEndStr,
     wordsStart,
-    wordsGoal
+    wordsGoal,
+    isMarathon ? 1 : 0
   )
 
   const dailyGoal = Math.ceil(wordsGoal / remainingDays)
@@ -84,6 +93,18 @@ async function wordsGoalHandler(
       inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
     },
   })
+}
+
+async function wordsGoalHandler(
+  ctx: ContextWithSession,
+  wordsGoal: number,
+  sessionData: NewProjectChainData
+): Promise<void> {
+  const { projectName = DEFAULT_PROJECT_NAME, wordsStart = 0, deadline } = sessionData
+
+  const dateEnd = deadline !== undefined ? deadline : getToday().endOf('month')
+
+  await createNewProject(ctx, projectName, wordsStart, wordsGoal, dateEnd)
 }
 
 async function editProjectGoalHandler(
@@ -222,6 +243,19 @@ export const textInputCommands: BotTextChainAction<PeroTextChainType, AnySession
       {
         inputType: 'number',
         handler: wordsGoalHandler,
+      },
+    ],
+  },
+  {
+    type: PeroTextChainType.NewMarathonProject,
+    stages: [
+      {
+        inputType: 'string',
+        handler: projectNameHandler,
+      },
+      {
+        inputType: 'number',
+        handler: marathonWordsStartHandler,
       },
     ],
   },
