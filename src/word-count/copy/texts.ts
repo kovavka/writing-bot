@@ -15,16 +15,19 @@ export const texts = {
   projectCreated: (
     finalWords: number,
     daysLeft: number,
-    dayGoal: number
+    dailyGoal: number
   ): string => `Время писать! Через ${daysLeft} ${getWordForm(daysLeft, forms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, forms.words)}.
-Твоя цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, forms.words)}`,
+Твоя цель на каждый день: ${dailyGoal} ${getWordForm(dailyGoal, forms.words)}`,
   allProjects: `Ууху, вот все ваши гримуары`,
   zeroProjects: `Кажется, у тебя ещё нет гримуаров, но могу помочь тебе создать новый`,
   selectProject: (name: string): string => `Ууху, открываю гримуар _${name}_`,
   editProject: `Конечно, что ты хочешь поменять?`,
   editGoal: `Конечно, слов ты хочешь написать в итоге?`,
-  goalUpdated: (finalWords: number, daysLeft: number, dayGoal: number): string =>
-    `Через ${daysLeft} ${getWordForm(daysLeft, forms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, forms.words)}. Твоя новая цель на каждый день: ${dayGoal} ${getWordForm(dayGoal, forms.words)}`,
+  goalUpdated: (finalWords: number, daysLeft: number, dailyGoal: number): string =>
+    `Через ${daysLeft} ${getWordForm(daysLeft, forms.days)} в твоём гримуаре должно быть ${finalWords} ${getWordForm(finalWords, forms.words)}. Твоя новая цель на каждый день: ${dailyGoal} ${getWordForm(dailyGoal, forms.words)}`,
+  goalUpdatedAchieved: `Ты уже достигла этой цели. Отличная работа!`,
+  goalUpdatedAfterDeadline: (finalWords: number): string =>
+    `Похоже, проект уже завершён, но хорошо, давай скажем, что в гримуаре должно было быть ${finalWords} ${getWordForm(finalWords, forms.words)}`,
   projectRenamed: `Хорошее имя, ведьмочка!`,
   projectRemoved: `Гримуар удалён!`,
   setToday: (words: number): string =>
@@ -34,9 +37,13 @@ export const texts = {
   todaySavedNegative: (wordsDiff: number): string =>
     `Какая усердная ведьмочка, всё редактирует и редактирует! Сегодня ты *удалила* ${Math.abs(wordsDiff)} ${getWordForm(wordsDiff, forms.words)}.`,
   todayAchieved: `Надо же, ведьмочка, теперь твоя цель выполнена!`,
-  statistics: (daysLeft: number, wordsLeft: number): string =>
-    `Впереди еще ${daysLeft} ${getWordForm(daysLeft, forms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, forms.words)}. Я верю в тебя, моя ведьмочка!`,
+  statistics: (daysLeft: number, wordsLeft: number, dailyGoal: number): string =>
+    `Впереди еще ${daysLeft} ${getWordForm(daysLeft, forms.days)} и не хватает ${wordsLeft} ${getWordForm(wordsLeft, forms.words)}. 
+Твоя цель на каждый день: ${dailyGoal} ${getWordForm(dailyGoal, forms.words)}. Я верю в тебя, моя ведьмочка!`,
   statisticsAchieved: `Молодец, ведьмочка, ты дописала манускрипт!`,
+  statisticsAfterDeadline: (percent: number): string =>
+    `Какая усердная работа. Ты выполнила цель на ${percent}%!
+Хочешь, теперь начнём новый проект?`,
   status: `Я здесь, ведьмочка. Ухуу!`,
   settings: `Чем я могу тебе помочь?`,
   changeName: `Разумеется, какое имя ты хочешь взять?`,

@@ -142,16 +142,33 @@ async function projectStatHandler(
   const chart = await getChart(projectLength, data, wordsStart, wordsGoal + wordsStart)
 
   const wordsLeft = wordsGoal + wordsStart - prevRes
-  await ctx.replyWithPhoto(
-    { source: chart },
-    {
-      caption:
-        wordsLeft <= 0 ? texts.statisticsAchieved : texts.statistics(remainingDays, wordsLeft),
-      reply_markup: {
-        inline_keyboard: [[buttons.setToday(projectId)]],
-      },
-    }
-  )
+  // in this case 0 means prev day
+  if (remainingDays <= 0) {
+    const goalPercent = Math.floor(((prevRes - wordsStart) / wordsGoal) * 100)
+    await ctx.replyWithPhoto(
+      { source: chart },
+      {
+        caption: texts.statisticsAfterDeadline(goalPercent),
+        reply_markup: {
+          inline_keyboard: [[buttons.newProject]],
+        },
+      }
+    )
+  } else {
+    const dailyGoal = Math.ceil(wordsLeft / remainingDays)
+    await ctx.replyWithPhoto(
+      { source: chart },
+      {
+        caption:
+          wordsLeft <= 0
+            ? texts.statisticsAchieved
+            : texts.statistics(remainingDays, wordsLeft, dailyGoal),
+        reply_markup: {
+          inline_keyboard: [[buttons.setToday(projectId)]],
+        },
+      }
+    )
+  }
 
   await ctx.answerCbQuery()
 }

@@ -121,6 +121,8 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
         } else {
           await queryCommand.handler(sessionContext, ...params)
         }
+
+        // todo change handler to bool and check if true before running the chain?
         if (queryCommand.chainCommand !== undefined) {
           startNewChain(sessionContext, queryCommand.chainCommand)
         }

@@ -129,14 +129,41 @@ async function editProjectGoalHandler(
 
   const remainingDays = getRemainingDays(today, dateEnd)
 
-  const dailyGoal = Math.ceil(goal / remainingDays)
+  const wordsFinal = project.wordsStart + goal
+  if (remainingDays <= 0) {
+    await ctx.reply(texts.goalUpdatedAfterDeadline(wordsFinal), {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[buttons.statistics(projectId)]],
+      },
+    })
 
-  await ctx.reply(texts.goalUpdated(project.wordsStart + goal, remainingDays, dailyGoal), {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
-    },
-  })
+    return
+  }
+
+  const row = await db.getCurrentWords(projectId)
+  if (row === undefined) {
+    return Promise.reject(`Couldn't find latest words, projectId = ${projectId}`)
+  }
+  const prevWords = row.latestWords ?? row.wordsStart
+  const remainingWords = goal + project.wordsStart - prevWords
+  const dailyGoal = Math.ceil(remainingWords / remainingDays)
+
+  if (remainingWords <= 0) {
+    await ctx.reply(texts.goalUpdatedAchieved, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[buttons.statistics(projectId)]],
+      },
+    })
+  } else {
+    await ctx.reply(texts.goalUpdated(wordsFinal, remainingDays, dailyGoal), {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[buttons.setToday(projectId), buttons.statistics(projectId)]],
+      },
+    })
+  }
 }
 
 async function renameProjectHandler(

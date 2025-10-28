@@ -37,7 +37,7 @@ export const buttons = {
     callback_data: `${PeroQueryActionType.UpdateProject}_${projectId}`,
   }),
   statistics: (projectId: number): ButtonType => ({
-    text: 'Узнать будушее 🔮',
+    text: 'Увидеть прошлое 🔮',
     callback_data: `${PeroQueryActionType.StatProject}_${projectId}`,
   }),
 }
