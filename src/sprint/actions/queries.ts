@@ -32,6 +32,18 @@ async function createEventHandler(ctx: ContextWithSession): Promise<void> {
   await ctx.reply(texts.setEventDateTime)
 }
 
+function escapeSpecialCharacters(text: string): string {
+  let result = ''
+  for (const char of text) {
+    if (['~', '_', '`', '*'].includes(char)) {
+      result += '\\'
+    }
+    result += char
+  }
+
+  return result
+}
+
 function getSprintStat(sprintIndex: number, sprintDuration: number): string {
   const currentSprint = GlobalSession.instance.eventData!.sprints[sprintIndex]
   const users = GlobalSession.instance.users
@@ -44,7 +56,7 @@ function getSprintStat(sprintIndex: number, sprintDuration: number): string {
       return [
         ...data,
         {
-          userName: user?.name ?? userId.toString(),
+          userName: user !== undefined ? escapeSpecialCharacters(user.name) : userId.toString(),
           diff: result?.diff ?? 0,
         },
       ]
@@ -57,7 +69,7 @@ function getSprintStat(sprintIndex: number, sprintDuration: number): string {
     // active participant who didn't submit the result
     if (currentSprint.results[user.id] === undefined && participants[user.id]?.active) {
       currentSprintResult.push({
-        userName: user.name,
+        userName: escapeSpecialCharacters(user.name),
         diff: 0,
       })
     }

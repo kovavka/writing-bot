@@ -58,8 +58,14 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
             buttons.map(button => Markup.button.callback(button.text, button.callback_data)),
           ]),
         })
-      } catch (error) {
-        console.log(`Failed to send message to user ID: ${userId}`, error)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (error: any) {
+        if (error.response.error_code === 403) {
+          // todo remove user
+          // console.log(`user to remove: ${userId}`)
+        } else {
+          console.log(`Failed to send message to user ID: ${userId}`, error)
+        }
       }
       await delay(MESSAGE_TIMEOUT)
     }
