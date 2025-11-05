@@ -21,7 +21,8 @@ async function startHandler(ctx: SimpleContext): Promise<void> {
 
   const user = await db.getUser(userId)
   if (user == null) {
-    await db.addUser(userId, `${first_name} ${last_name}`)
+    const userName = last_name === undefined ? first_name : `${first_name} ${last_name}`
+    await db.addUser(userId, userName)
 
     startNewChain(sessionContext, PeroTextChainType.SetName)
     await ctx.reply(texts.welcome)
