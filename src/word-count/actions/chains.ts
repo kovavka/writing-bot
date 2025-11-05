@@ -141,12 +141,10 @@ async function editProjectGoalHandler(
     return
   }
 
-  const row = await db.getCurrentWords(projectId)
-  if (row === undefined) {
-    return Promise.reject(`Couldn't find latest words, projectId = ${projectId}`)
-  }
-  const prevWords = row.latestWords ?? row.wordsStart
-  const remainingWords = goal + project.wordsStart - prevWords
+  const todayStr = getTodayString()
+  const prevDayResult = await db.getPrevDayResult(projectId, todayStr)
+  const remainingWords =
+    prevDayResult !== undefined ? goal + project.wordsStart - prevDayResult.words : goal
   const dailyGoal = Math.ceil(remainingWords / remainingDays)
 
   if (remainingWords <= 0) {

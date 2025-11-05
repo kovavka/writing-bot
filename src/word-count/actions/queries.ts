@@ -129,22 +129,29 @@ async function projectStatHandler(
     data[index] = words
   })
 
-  let prevRes = wordsStart
-  // we use daysPassed to render bars until current date
+  let prevDayWords = wordsStart
+
+  let savedResult = wordsStart
+  // we use daysPassed to fill the bars until current date
   for (let i = 0; i < daysPassed; i++) {
+    if (i === daysPassed - 1) {
+      prevDayWords = savedResult
+    }
+
     if (data[i] !== undefined) {
-      prevRes = data[i]
+      savedResult = data[i]
     } else {
-      data[i] = prevRes
+      data[i] = savedResult
     }
   }
 
+  const currentWords = savedResult
+
   const chart = await getChart(projectLength, data, wordsStart, wordsGoal + wordsStart)
 
-  const wordsLeft = wordsGoal + wordsStart - prevRes
-  // in this case 0 means prev day
+  // in this case 0 means the next day after deadline
   if (remainingDays <= 0) {
-    const goalPercent = Math.floor(((prevRes - wordsStart) / wordsGoal) * 100)
+    const goalPercent = Math.floor(((currentWords - wordsStart) / wordsGoal) * 100)
     await ctx.replyWithPhoto(
       { source: chart },
       {
@@ -155,7 +162,10 @@ async function projectStatHandler(
       }
     )
   } else {
-    const dailyGoal = Math.ceil(wordsLeft / remainingDays)
+    const wordsLeft = wordsGoal + wordsStart - currentWords
+    const wordsLeftPrev = wordsGoal + wordsStart - prevDayWords
+
+    const dailyGoal = Math.ceil(wordsLeftPrev / remainingDays)
     await ctx.replyWithPhoto(
       { source: chart },
       {

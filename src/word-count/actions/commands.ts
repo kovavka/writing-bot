@@ -4,8 +4,8 @@ import * as db from '../database'
 import { texts } from '../copy/texts'
 import moment from 'moment-timezone'
 import { DATE_FORMAT, TIME_ZONE } from '../../shared/variables'
-import { MARATHON_END_STR } from '../variables'
-import { getToday } from '../../shared/date'
+import { MARATHON_END_STR, MARATHON_START_STR } from '../variables'
+import { getToday, stringToDate } from '../../shared/date'
 import { buttons } from '../copy/buttons'
 import { BotCommand } from '../../shared/bot/actions'
 import { initSession, startNewChain } from '../../shared/bot/utils'
@@ -91,7 +91,7 @@ async function adminStatTodayHandler(ctx: SimpleContext): Promise<void> {
 
 async function adminStatHandler(ctx: SimpleContext): Promise<void> {
   // todo move to config?
-  const dateFrom = '2025-04-30'
+  const dateFrom = stringToDate(MARATHON_START_STR).subtract(5, 'days').format(DATE_FORMAT)
 
   const rows = await db.getStatistics(dateFrom, MARATHON_END_STR)
 
