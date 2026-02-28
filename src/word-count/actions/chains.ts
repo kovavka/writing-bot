@@ -1,7 +1,7 @@
 import { ContextWithSession } from '../../shared/bot/context'
 import { texts } from '../copy/texts'
 import * as db from '../database'
-import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE } from '../variables'
+import { DEFAULT_PROJECT_NAME, MARATHON_END_DATE, MARATHON_WORD_GOAL } from '../variables'
 import { PeroTextChainType } from '../types'
 import { buttons } from '../copy/buttons'
 import { getToday, getTodayString, stringToDate } from '../../shared/date'
@@ -49,7 +49,14 @@ async function marathonWordsStartHandler(
 ): Promise<void> {
   const { projectName = DEFAULT_PROJECT_NAME } = sessionData
 
-  await createNewProject(ctx, projectName, wordsStart, 50000, MARATHON_END_DATE, true)
+  await createNewProject(
+    ctx,
+    projectName,
+    wordsStart,
+    MARATHON_WORD_GOAL,
+    MARATHON_END_DATE,
+    true
+  )
 }
 
 async function projectDeadlineHandler(

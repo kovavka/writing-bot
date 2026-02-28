@@ -179,8 +179,6 @@ async function projectStatHandler(
       }
     )
   }
-
-  await ctx.answerCbQuery()
 }
 
 export const queryMap: BotQueryAction<PeroQueryActionType, PeroTextChainType>[] = [

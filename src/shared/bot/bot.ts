@@ -140,7 +140,7 @@ export class WritingBot<QueryType extends string, ChainType extends string> {
     } catch (err) {
       ctx.reply(this.errors.generic)
       this.sendErrorToAdmin(err)
-      ctx.answerCbQuery()
+      // ctx.answerCbQuery()
     }
   }
 
